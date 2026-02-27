@@ -20,7 +20,7 @@ import '../../../../Model/Marketing/ContactPerson.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../Model/User_model.dart';
-import '../../../../Providers/AuthProvider.dart';
+
 import '../../../../Providers/Marketing/SchoolVisitProvider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -48,8 +48,16 @@ class _AddVisitPageState extends State<AddVisitPage> {
   UserModel? admin;
 
   void _load() async {
-    admin = await context.read<UserProvider>().loadAdmin(widget.userId);
-    setState(() {});
+    print("AddVisitPage: Loading admin profile for userId: ${widget.userId}");
+    try {
+      admin = await context.read<UserProvider>().loadAdmin(widget.userId);
+    } catch (e) {
+      print("Error loading admin: $e");
+    } finally {
+      if (mounted) {
+        setState(() => loadingAdmin = false);
+      }
+    }
   }
 
   final _formKey = GlobalKey<FormState>();
@@ -167,6 +175,7 @@ class _AddVisitPageState extends State<AddVisitPage> {
   bool shippingUploading = false;
 
   // ---------- SAVE ----------
+  bool loadingAdmin = true;
   @override
   void initState() {
     super.initState();
@@ -195,14 +204,32 @@ class _AddVisitPageState extends State<AddVisitPage> {
   Future<void> save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (loadingAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please wait, loading admin profile...")),
+      );
+      return;
+    }
+
+    /*
+    if (admin == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                "Failed to load admin profile. Please go back and try again.")),
+      );
+      // return;
+    }
+    */
+
     setState(() => submitting = true);
     final visit = SchoolVisit(
       id: id,
       createdAt: DateTime.now(),
       createdByUserId: widget.userId,
       createdByUserName: widget.name,
-      adminId: admin!.createdById,
-      adminName: admin!.createdByName,
+      adminId: admin?.createdById,
+      adminName: admin?.createdByName,
       schoolProfile: SchoolProfile(
         name: schoolCtrl.text.trim(),
         googleMapLink: selectedLocation ?? "N/A",

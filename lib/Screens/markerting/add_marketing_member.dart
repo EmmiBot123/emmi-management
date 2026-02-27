@@ -4,10 +4,11 @@ import '../../../Providers/AuthProvider.dart';
 import '../../../Providers/User_provider.dart';
 import '../../Model/User_model.dart';
 
-void showAddMarketingMemberDialog(
+void showAddTeamMemberDialog(
   BuildContext context,
-  UserModel? admin,
-) {
+  UserModel? admin, {
+  String role = "MARKETING",
+}) {
   final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController emailCtrl = TextEditingController();
 
@@ -18,9 +19,9 @@ void showAddMarketingMemberDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      title: const Text(
-        "Add Marketing Member",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      title: Text(
+        "Add $role Member",
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
       content: SizedBox(
         width: 350, // Works good for both web and mobile
@@ -78,7 +79,7 @@ void showAddMarketingMemberDialog(
               await context.read<UserProvider>().addUser(
                     nameCtrl.text.trim(),
                     emailCtrl.text.trim(),
-                    "MARKETING",
+                    role,
                     adminId,
                     adminName,
                   );

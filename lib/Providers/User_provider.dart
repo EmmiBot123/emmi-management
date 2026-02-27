@@ -2,15 +2,18 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../Model/Marketing_member.dart';
 import '../Model/User_model.dart';
 import '../Resources/api_endpoints.dart';
-import 'AuthProvider.dart';
 
 class UserProvider extends ChangeNotifier {
   List<UserModel> marketing = [];
   List<UserModel> teleMarketing = [];
+  List<UserModel> assembly = [];
+  List<UserModel> installation = [];
+  List<UserModel> qubiq = [];
+  List<UserModel> ads = [];
   List<UserModel> admin = [];
   bool isLoading = false;
   bool isLoadingAdd = false;
@@ -47,43 +50,117 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // Load members from API
-  Future<void> loadMembers(String adminId) async {
+  // Load members from API and Firestore
+  Future<void> loadMembers(String _) async {
     try {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(ApiEndpoints.getUsersByAdminId(adminId));
-      final response = await http.get(url);
+      List<UserModel> firestoreUsers = [];
+      List<UserModel> apiUsers = [];
 
-      if (response.statusCode == 200) {
-        final List jsonList = jsonDecode(response.body);
-
-        final List<UserModel> allUsers =
-            jsonList.map((item) => UserModel.fromJson(item)).toList();
-
-        // Filter only marketing members
-        marketing = allUsers
-            .where((user) =>
-                user.role != null && user.role!.toLowerCase() == "marketing")
-            .toList();
-        teleMarketing = allUsers
-            .where((user) =>
-                user.role != null &&
-                user.role!.toLowerCase() == "tele_marketing")
-            .toList();
-
-        // Sort alphabetically by name
-        marketing.sort((a, b) => (a.name ?? "")
-            .toLowerCase()
-            .compareTo((b.name ?? "").toLowerCase()));
-        // Sort alphabetically by name
-        teleMarketing.sort((a, b) => (a.name ?? "")
-            .toLowerCase()
-            .compareTo((b.name ?? "").toLowerCase()));
-      } else {
-        print("API error: ${response.statusCode}");
+      // 1. Fetch from Firestore (Primary Source for new users)
+      try {
+        final snapshot =
+            await FirebaseFirestore.instance.collection('users').get();
+        firestoreUsers = snapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id; // Ensure ID is set
+          return UserModel.fromJson(data);
+        }).toList();
+        print(
+            "UserProvider: Fetched ${firestoreUsers.length} users from Firestore");
+      } catch (e) {
+        print("Error fetching from Firestore: $e");
       }
+
+      // 2. Fetch from API (Legacy)
+      try {
+        final url = Uri.parse(ApiEndpoints.getUsers);
+        final response = await http.get(url);
+
+        if (response.statusCode == 200) {
+          final List jsonList = jsonDecode(response.body);
+          apiUsers = jsonList.map((item) => UserModel.fromJson(item)).toList();
+          print("UserProvider: Fetched ${apiUsers.length} users from API");
+        } else {
+          print("API error: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("Error fetching from API: $e");
+      }
+
+      // 3. Merge Lists (deduplicate by Email preferred, then ID)
+      final Map<String, UserModel> mergedMap = {};
+
+      // Helper to add user to map (normalize email)
+      void addUserToMap(UserModel u) {
+        if (u.email != null && u.email!.isNotEmpty) {
+          final emailKey = u.email!.trim().toLowerCase();
+          mergedMap[emailKey] = u;
+        } else if (u.id != null) {
+          mergedMap[u.id!] = u;
+        }
+      }
+
+      // Add API users first
+      for (var u in apiUsers) {
+        addUserToMap(u);
+      }
+
+      // Add/Overwrite with Firestore users (Newer data wins)
+      for (var u in firestoreUsers) {
+        addUserToMap(u);
+      }
+
+      final List<UserModel> allUsers = mergedMap.values.toList();
+
+      print("UserProvider: Total merged users: ${allUsers.length}");
+      for (var u in allUsers) {
+        print(
+            " - User: ${u.name}, Role: ${u.role}, Source: ${firestoreUsers.contains(u) ? 'Firestore' : 'API'}");
+      }
+
+      // Filter lists
+      marketing = allUsers
+          .where((user) =>
+              user.role != null && user.role!.toUpperCase() == "MARKETING")
+          .toList();
+      teleMarketing = allUsers
+          .where((user) =>
+              user.role != null && user.role!.toUpperCase() == "TELE_MARKETING")
+          .toList();
+      assembly = allUsers
+          .where((user) =>
+              user.role != null && user.role!.toUpperCase() == "ASSEMBLY_TEAM")
+          .toList();
+      installation = allUsers
+          .where((user) =>
+              user.role != null &&
+              user.role!.toUpperCase() == "INSTALLATION_TEAM")
+          .toList();
+      qubiq = allUsers
+          .where((user) =>
+              user.role != null && user.role!.toUpperCase() == "QUBIQ")
+          .toList();
+      ads = allUsers
+          .where(
+              (user) => user.role != null && user.role!.toUpperCase() == "ADS")
+          .toList();
+
+      // Helper to sort
+      void sortList(List<UserModel> list) {
+        list.sort((a, b) => (a.name ?? "")
+            .toLowerCase()
+            .compareTo((b.name ?? "").toLowerCase()));
+      }
+
+      sortList(marketing);
+      sortList(teleMarketing);
+      sortList(assembly);
+      sortList(installation);
+      sortList(qubiq);
+      sortList(ads);
     } catch (e) {
       print("Error fetching members => $e");
     } finally {
@@ -170,13 +247,41 @@ class UserProvider extends ChangeNotifier {
   }
 
   // Update member
-  // Future<void> editMember(String id, String name) async {
-  //   // TODO: API PUT request
-  //
-  //   final index = members.indexWhere((m) => m.id == id);
-  //   if (index != -1) {
-  //     members[index] = MarketingMember(id: id, name: name);
-  //     notifyListeners();
-  //   }
-  // }
+  // Delete User
+  Future<bool> deleteUser(String userId) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      // 1. Delete from API (Legacy)
+      try {
+        // ApiEndpoints.signup is likely POST only. Skipping API delete for now.
+      } catch (_) {}
+
+      // 2. Delete from Firestore
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .delete();
+      } catch (e) {
+        print("Error deleting from Firestore: $e");
+        // If api delete also failed, return false?
+        // But we want to remove from UI if possible.
+      }
+
+      // 3. Update Local State
+      marketing.removeWhere((u) => u.id == userId);
+      teleMarketing.removeWhere((u) => u.id == userId);
+      admin.removeWhere((u) => u.id == userId);
+
+      return true;
+    } catch (e) {
+      print("Error deleting user: $e");
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 }

@@ -8,6 +8,10 @@ import '../../../Providers/User_provider.dart';
 
 import 'add_visit_page.dart';
 import 'visit_details_page.dart';
+import '../Bills/my_bills_page.dart';
+import '../../../../../Services/migration_service.dart';
+import '../../../../../Services/excel_service.dart';
+import '../../../Model/Marketing/school_visit_model.dart';
 
 class SchoolVisitListPage extends StatefulWidget {
   final String userId;
@@ -196,6 +200,65 @@ class _SchoolVisitListPageState extends State<SchoolVisitListPage> {
     );
   }
 
+  // ================= MIGRATION =================
+  Future<void> _showMigrationDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Sync Legacy Data"),
+        content: const Text(
+            "This will look for your old account using your email address and migrate your school visits to this new app.\n\nContinue?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("CANCEL"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("SYNC NOW"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final auth = context.read<AuthProvider>();
+      // Email is available via auth.email
+      // If AuthProvider doesn't have email easily accessible, we might need to fetch it or pass it.
+      // Looking at MarketingPage, it passes userId/name/role.
+      // UserProvider might have it.
+
+      // Let's assume we can get it from AuthProvider or UserProvider.
+      // If not, we might need to update AuthProvider to expose email.
+      // Checking AuthProvider usage in other files...
+
+      final service = MigrationService();
+      // Use email from AuthProvider
+      final userEmail = auth.email ?? "";
+
+      final result = await service.runMigration(userEmail, widget.userId);
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true)
+            .pop(); // Close loading dialog correctly
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result)),
+        );
+
+        // Reload visits
+        context.read<SchoolVisitProvider>().loadVisits(widget.userId);
+      }
+    }
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -229,6 +292,165 @@ class _SchoolVisitListPageState extends State<SchoolVisitListPage> {
                 },
               ),
             const SizedBox(width: 8),
+            IconButton(
+              tooltip: "My Expenses",
+              icon: const Icon(Icons.receipt_long),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyBillsPage(
+                      userId: widget.userId,
+                      userName: widget.name,
+                    ),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: "Sync Legacy Data",
+              icon: const Icon(Icons.sync),
+              onPressed: () => _showMigrationDialog(),
+            ),
+            IconButton(
+              tooltip: "Export to Excel",
+              icon: const Icon(Icons.download),
+              onPressed: () async {
+                final provider = context.read<SchoolVisitProvider>();
+                if (provider.filteredVisits.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("No visits to export")),
+                  );
+                  return;
+                }
+
+                // Show date range picker dialog
+                final result = await showDialog<Map<String, dynamic>>(
+                  context: context,
+                  builder: (ctx) {
+                    DateTime? startDate;
+                    DateTime? endDate;
+
+                    return StatefulBuilder(
+                      builder: (ctx, setState) {
+                        return AlertDialog(
+                          title: const Text("Export to Excel"),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "Select a date range to filter visits, or export all.",
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 16),
+                              ListTile(
+                                leading: const Icon(Icons.calendar_today),
+                                title: Text(startDate != null
+                                    ? "From: ${startDate!.day}/${startDate!.month}/${startDate!.year}"
+                                    : "Select Start Date"),
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: startDate ?? DateTime.now(),
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() => startDate = picked);
+                                  }
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.calendar_today),
+                                title: Text(endDate != null
+                                    ? "To: ${endDate!.day}/${endDate!.month}/${endDate!.year}"
+                                    : "Select End Date"),
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: endDate ?? DateTime.now(),
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() => endDate = picked);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text("Cancel"),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, {
+                                'all': true,
+                              }),
+                              child: const Text("Export All"),
+                            ),
+                            ElevatedButton(
+                              onPressed: (startDate != null && endDate != null)
+                                  ? () => Navigator.pop(ctx, {
+                                        'all': false,
+                                        'start': startDate,
+                                        'end': endDate,
+                                      })
+                                  : null,
+                              child: const Text("Export Range"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+
+                if (result == null) return;
+
+                List<SchoolVisit> visitsToExport;
+                if (result['all'] == true) {
+                  visitsToExport = provider.filteredVisits;
+                } else {
+                  final start = result['start'] as DateTime;
+                  final end = (result['end'] as DateTime)
+                      .add(const Duration(days: 1)); // inclusive end date
+                  visitsToExport = provider.filteredVisits.where((v) {
+                    final created = v.createdAt;
+                    if (created == null) return false;
+                    return created.isAfter(start) && created.isBefore(end);
+                  }).toList();
+                }
+
+                if (visitsToExport.isEmpty) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content:
+                              Text("No visits found in the selected range")),
+                    );
+                  }
+                  return;
+                }
+
+                try {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Generating Excel...")),
+                    );
+                  }
+
+                  await ExcelService().exportVisits(visitsToExport);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Export failed: $e")),
+                    );
+                  }
+                }
+              },
+            ),
           ],
           bottom: kIsWeb
               ? PreferredSize(
@@ -297,7 +519,7 @@ class _SchoolVisitListPageState extends State<SchoolVisitListPage> {
                             "Status: ${visit.visitDetails.status}\n"
                             "Revisit: ${visit.visitDetails.revisitDate ?? "Not Scheduled"}"
                             "${widget.role == "TELE_MARKETING" ? "\nAssigned To: ${visit.assignedUserName ?? "Not Assigned"}" : ""}"
-                            "${widget.role == "MARKETING" ? "\nAssigned By: ${visit.createdByUserName ?? "Not Assigned"}" : ""}",
+                            "${widget.role == "MARKETING" ? "\nAssigned By: ${visit.createdByUserName}" : ""}",
                           ),
                           trailing: selectionMode ||
                                   provider.currentFilter == "SHARED"

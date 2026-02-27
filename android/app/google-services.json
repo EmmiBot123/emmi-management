@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "946347091274",
+    "project_id": "qubiq-admin-93bf2",
+    "storage_bucket": "qubiq-admin-93bf2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:946347091274:android:25efbbd70f7aae89fa0db3",
+        "android_client_info": {
+          "package_name": "com.example.emmi_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNprEmtQ-jwLGTQmOXCn0erRM5K9Jnrxg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

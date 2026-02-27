@@ -24,9 +24,6 @@ class AssemblyStockUpdatePage extends StatefulWidget {
 class _AssemblyStockUpdatePageState extends State<AssemblyStockUpdatePage> {
   bool confirming = false;
 
-  /// Prevent double deduction on rebuild
-  final Set<String> _processedProducts = {};
-
   @override
   void initState() {
     super.initState();
@@ -219,8 +216,6 @@ class _AssemblyStockUpdatePageState extends State<AssemblyStockUpdatePage> {
       );
     }
 
-    final productKey = "${product.id}_${visitProduct.quantity}";
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,12 +232,8 @@ class _AssemblyStockUpdatePageState extends State<AssemblyStockUpdatePage> {
             final before = component.availableStock;
             final used = component.qtyRequired * visitProduct.quantity;
 
-            if (!_processedProducts.contains(productKey)) {
-              component.availableStock = (component.availableStock - used)
-                  .clamp(0, component.availableStock);
-            }
-
-            final after = component.availableStock;
+            // UI DISPLAY ONLY - do not mutate component here
+            final after = (before - used).clamp(0, before);
 
             return Card(
               child: Padding(
@@ -284,12 +275,7 @@ class _AssemblyStockUpdatePageState extends State<AssemblyStockUpdatePage> {
           },
         ),
         const Divider(),
-        Builder(
-          builder: (_) {
-            _processedProducts.add(productKey);
-            return const SizedBox.shrink();
-          },
-        ),
+        // Removed side-effect Builder
       ],
     );
   }

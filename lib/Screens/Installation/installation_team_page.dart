@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../../Providers/Marketing/SchoolVisitProvider.dart';
 import 'installation_page.dart';
+import '../GenericTeamPage.dart';
 
 class InstallationTeamPage extends StatefulWidget {
   const InstallationTeamPage({super.key});
@@ -33,6 +34,23 @@ class _InstallationTeamPageState extends State<InstallationTeamPage> {
         appBar: AppBar(
           title: const Text("Installation Team"),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.group),
+              tooltip: "View Team Members",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GenericTeamPage(
+                      role: "INSTALLATION_TEAM",
+                      title: "Installation Team",
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         body: provider.isLoading
             ? const Center(child: CircularProgressIndicator())

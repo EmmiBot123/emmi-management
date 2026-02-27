@@ -202,8 +202,11 @@ class SchoolVisitProvider extends ChangeNotifier {
       notifyListeners();
       final visits = await repository.getPaymentVisits();
 
-      assemblyVisits =
-          visits.where((v) => v.payment.paymentConfirmed == true).toList();
+      assemblyVisits = visits
+          .where((v) =>
+              v.visitDetails.status == "CLOSED_WON" &&
+              v.payment.paymentConfirmed == true)
+          .toList();
     } catch (e) {
       errorMessage = e.toString();
     }
@@ -219,7 +222,9 @@ class SchoolVisitProvider extends ChangeNotifier {
       final visits = await repository.getPaymentVisits();
 
       installationVisits = visits
-          .where((v) => v.shippingDetails.passedToInstallation == true)
+          .where((v) =>
+              v.visitDetails.status == "CLOSED_WON" &&
+              v.shippingDetails.passedToInstallation == true)
           .toList();
     } catch (e) {
       errorMessage = e.toString();

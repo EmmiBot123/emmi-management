@@ -24,6 +24,7 @@ import '../../../../Providers/User_provider.dart';
 import '../../../Model/Marketing/shared_user_note.dart';
 import '../Resusable/date_picker_field.dart';
 import 'MapPicker.dart';
+import '../../../../Services/excel_service.dart';
 
 class VisitDetailsPage extends StatefulWidget {
   final SchoolVisit visit;
@@ -863,6 +864,23 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
       appBar: AppBar(
         title: Text(visit.schoolProfile.name),
         actions: [
+          IconButton(
+            tooltip: "Export to Excel",
+            icon: const Icon(Icons.download),
+            onPressed: () async {
+              try {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Generating Excel...")),
+                );
+
+                await ExcelService().exportVisits([widget.visit]);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Export failed: $e")),
+                );
+              }
+            },
+          ),
           if (context.read<SchoolVisitProvider>().currentFilter != "SHARED")
             IconButton(
               icon: Icon(isEditMode ? Icons.close : Icons.edit),

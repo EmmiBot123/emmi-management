@@ -3,6 +3,7 @@ class ApiEndpoints {
 
   static const String getUsers = "$baseUrl/users";
   static const String signup = "$baseUrl/auth/signup";
+  static const String login = "$baseUrl/auth/login";
   static String getUsersByAdminId(String adminId) =>
       "$baseUrl/users/admin/$adminId";
   static String getUsersById(String userId) => "$baseUrl/users/$userId";

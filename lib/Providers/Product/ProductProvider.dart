@@ -70,7 +70,12 @@ class ProductProvider extends ChangeNotifier {
         /// backend returns created document — refresh local list entry
         final created = ProductOption.fromJson(json);
 
-        availableProducts.add(created);
+        final index = availableProducts.indexWhere((p) => p.id == created.id);
+        if (index != -1) {
+          availableProducts[index] = created;
+        } else {
+          availableProducts.add(created);
+        }
         notifyListeners();
 
         return true;

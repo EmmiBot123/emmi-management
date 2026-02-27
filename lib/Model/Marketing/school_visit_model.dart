@@ -11,6 +11,7 @@ import 'School_profile_model.dart';
 import 'ShippingDetails.dart';
 import 'VisitDetails.dart';
 import 'shared_user_note.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SchoolVisit {
   String? id;
@@ -131,10 +132,16 @@ class SchoolVisit {
           [],
       labInformation: LabInformation.fromJson(json["labInformation"]),
       otherRequirements: json["otherRequirements"],
-      createdAt:
-          json["createdAt"] != null ? DateTime.parse(json["createdAt"]) : null,
-      updatedAt:
-          json["updatedAt"] != null ? DateTime.parse(json["updatedAt"]) : null,
+      createdAt: json["createdAt"] is Timestamp
+          ? (json["createdAt"] as Timestamp).toDate()
+          : json["createdAt"] != null
+              ? DateTime.parse(json["createdAt"].toString())
+              : null,
+      updatedAt: json["updatedAt"] is Timestamp
+          ? (json["updatedAt"] as Timestamp).toDate()
+          : json["updatedAt"] != null
+              ? DateTime.parse(json["updatedAt"].toString())
+              : null,
     );
   }
 

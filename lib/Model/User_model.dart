@@ -33,7 +33,8 @@ class UserModel {
       role: json['role'],
       roleId: json['roleId'] != null ? List<String>.from(json['roleId']) : null,
       isEnabled: json['enabled'] ?? json['isEnabled'], // nullable allowed
-      createdTime: json['createdTime'],
+      createdTime: json['createdTime'] ??
+          json['createdAt']?.toString(), // Handle Firestore field
       createdById: json['createdById'],
       createdByName: json['createdByName'],
     );

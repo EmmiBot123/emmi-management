@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:emmi_management/Screens/Ads/ads_page.dart';
 
 import '../Providers/AuthProvider.dart';
 
@@ -13,6 +14,8 @@ import 'markerting/SchoolVisit/school_visit_list_page.dart';
 import 'markerting/admin_to_marketing.dart';
 import 'markerting/marketing_page.dart';
 import 'SuperAdmin/super_admin_page.dart';
+import 'Qubiq/qubiq_page.dart';
+import 'Testing/testing_page.dart';
 
 class RolesPage extends StatefulWidget {
   const RolesPage({super.key});
@@ -32,6 +35,9 @@ class _RolesPageState extends State<RolesPage> {
     "Accounts",
     "Assembly Team",
     "Installation Team",
+    "Qubiq",
+    "Ads",
+    "Testing",
   ];
   final allowedRoles = {
     "Admin",
@@ -55,6 +61,12 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.build;
       case "Installation Team":
         return Icons.engineering;
+      case "Qubiq":
+        return Icons.api;
+      case "Ads":
+        return Icons.video_library;
+      case "Testing":
+        return Icons.bug_report;
       default:
         return Icons.person;
     }
@@ -106,6 +118,12 @@ class _RolesPageState extends State<RolesPage> {
         return const SchoolAssemblyPage();
       case "Installation Team":
         return const InstallationTeamPage();
+      case "Qubiq":
+        return const QubiqPage();
+      case "Ads":
+        return const AdsPage();
+      case "Testing":
+        return const TestingPage();
       default:
         return const SizedBox();
     }
@@ -134,6 +152,26 @@ class _RolesPageState extends State<RolesPage> {
       return ["Accounts"];
     }
 
+    if (userRole == "ASSEMBLY_TEAM") {
+      return ["Assembly Team", "Testing"];
+    }
+
+    if (userRole == "INSTALLATION_TEAM") {
+      return ["Installation Team", "Testing"];
+    }
+
+    if (userRole == "QUBIQ") {
+      return ["Qubiq"];
+    }
+
+    if (userRole == "ADS") {
+      return ["Ads"];
+    }
+
+    if (userRole == "TESTING") {
+      return ["Testing"];
+    }
+
     return roles; // Super Admin sees everything
   }
 
@@ -144,6 +182,19 @@ class _RolesPageState extends State<RolesPage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
+    // Safety check: if role is missing despite being logged in, force logout or show error
+    if (auth.role == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<AuthProvider>().logout();
+      });
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     final String userRole = auth.role!;
     final List<String> visibleRoles = filterRoles(userRole);
 

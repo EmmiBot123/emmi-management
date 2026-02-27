@@ -3,11 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../../../Providers/Marketing/SchoolVisitProvider.dart';
 import 'payment_page.dart';
+import 'all_bills_page.dart';
 
 class SchoolVisitListPageAccounts extends StatefulWidget {
-  const SchoolVisitListPageAccounts({
-    super.key,
-  });
+  const SchoolVisitListPageAccounts({super.key});
 
   @override
   State<SchoolVisitListPageAccounts> createState() =>
@@ -33,68 +32,157 @@ class _SchoolVisitListPageAccountsState
         provider.clear();
         return true;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("School Visits"),
-          centerTitle: true,
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text("Accounts"),
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: "School Payments"),
+                Tab(text: "Staff Bills"),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              _buildSchoolPaymentsTab(context, provider),
+              const AllBillsPage(),
+            ],
+          ),
         ),
-        body: provider.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : provider.paymentVisits.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No school visits recorded.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: provider.paymentVisits.length,
-                    itemBuilder: (_, index) {
-                      final visit = provider.paymentVisits[index];
-                      String marketingInfo;
-                      if (visit.assignedUserName != null &&
-                          visit.assignedUserName!.isNotEmpty) {
-                        marketingInfo =
-                            "Marketing Person: ${visit.assignedUserName}\nTele/Created By: ${visit.createdByUserName ?? 'Not Available'}";
-                      } else {
-                        marketingInfo =
-                            "Marketing Person: ${visit.createdByUserName ?? 'Not Available'}";
-                      }
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => VisitDetailsPage(
-                                visit: visit,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Card(
-                          elevation: 3,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            title: Text(
-                              visit.schoolProfile.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Text(
-                              "Marketing Person: ${visit.assignedUserName?.isNotEmpty == true ? visit.assignedUserName : visit.createdByUserName ?? 'Not Available'}\n"
-                              "${visit.assignedUserName?.isNotEmpty == true ? 'Tele Marketing : ${visit.createdByUserName ?? 'Not Available'}\n' : ''}"
-                              "Admin: ${visit.adminName ?? 'Not Available'}",
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
       ),
+    );
+  }
+
+  Widget _buildSchoolPaymentsTab(
+      BuildContext context, SchoolVisitProvider provider) {
+    if (provider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.paymentVisits.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            const Text(
+              "No Pending Payments Found",
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Visits marked with 'Advance Transferred'\nwill appear here.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                context.read<SchoolVisitProvider>().loadPaymentVisits();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text("Refresh"),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Calculate total pending
+    double totalPending = 0;
+    for (var v in provider.paymentVisits) {
+      if (!v.payment.paymentConfirmed) {
+        totalPending += v.payment.amount;
+      }
+    }
+
+    return Column(
+      children: [
+        // Simple Summary Banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          color: Colors.blue.withOpacity(0.1),
+          child: Column(
+            children: [
+              const Text(
+                "Total Pending Payment",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "₹${totalPending.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // List
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(8),
+            itemCount: provider.paymentVisits.length,
+            separatorBuilder: (ctx, i) => const Divider(height: 1),
+            itemBuilder: (_, index) {
+              final visit = provider.paymentVisits[index];
+              final isPending = !visit.payment.paymentConfirmed;
+
+              return ListTile(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VisitDetailsPage(visit: visit),
+                    ),
+                  );
+                },
+                leading: CircleAvatar(
+                  backgroundColor: isPending ? Colors.orange : Colors.green,
+                  child: Icon(
+                    isPending ? Icons.priority_high : Icons.check,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  visit.schoolProfile.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  "By: ${visit.assignedUserName ?? visit.createdByUserName ?? 'Unknown'}",
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      "₹${visit.payment.amount.toStringAsFixed(0)}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      isPending ? "Pending" : "Received",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isPending ? Colors.orange : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

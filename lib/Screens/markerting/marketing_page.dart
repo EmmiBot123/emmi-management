@@ -51,7 +51,41 @@ class _MarketingPageState extends State<MarketingPage> {
             child: ListTile(
               title: Text(m.name ?? "N/A"),
               subtitle: Text(m.email ?? ""),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text("Delete User"),
+                          content: Text(
+                              "Are you sure you want to delete ${m.name}? This action cannot be undone."),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text("Cancel"),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await context
+                                    .read<UserProvider>()
+                                    .deleteUser(m.id!);
+                              },
+                              child: const Text("Delete",
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 16),
+                ],
+              ),
               onTap: () {
                 Navigator.push(
                   context,
@@ -59,7 +93,7 @@ class _MarketingPageState extends State<MarketingPage> {
                     builder: (_) => SchoolVisitListPage(
                       userId: m.id ?? "",
                       name: m.name ?? "",
-                      role: "MARKETING", // 👈 passes user-specific id
+                      role: "MARKETING",
                     ),
                   ),
                 );
@@ -69,7 +103,8 @@ class _MarketingPageState extends State<MarketingPage> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showAddMarketingMemberDialog(context, widget.admin),
+        onPressed: () =>
+            showAddTeamMemberDialog(context, widget.admin, role: "MARKETING"),
         backgroundColor: const Color(0xFFF7F2FA),
         icon: const Icon(Icons.person_add),
         label: const Text("Add Member"),

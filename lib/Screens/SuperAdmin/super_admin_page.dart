@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Testing/testing_feedback_list_page.dart';
 import 'ProductManagementPage/ProductManagementPage.dart';
 
 class SuperAdminPage extends StatelessWidget {
@@ -23,6 +24,18 @@ class SuperAdminPage extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const ProductManagementPage()),
+              );
+            },
+          ),
+          _box(
+            context,
+            title: "Testing Feedback",
+            icon: Icons.bug_report,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const TestingFeedbackListPage()),
               );
             },
           ),

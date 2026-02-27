@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../../Providers/Marketing/SchoolVisitProvider.dart';
 import 'assembly_page.dart';
+import '../GenericTeamPage.dart';
+import '../SuperAdmin/ProductManagementPage/ProductManagementPage.dart';
 
 class SchoolAssemblyPage extends StatefulWidget {
   const SchoolAssemblyPage({
@@ -35,6 +37,35 @@ class _SchoolAssemblyPageState extends State<SchoolAssemblyPage> {
         appBar: AppBar(
           title: const Text("School"),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.precision_manufacturing),
+              tooltip: "Product Management",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ProductManagementPage(),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.group),
+              tooltip: "View Team Members",
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GenericTeamPage(
+                      role: "ASSEMBLY_TEAM",
+                      title: "Assembly Team",
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         body: provider.isLoading
             ? const Center(child: CircularProgressIndicator())

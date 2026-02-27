@@ -18,61 +18,23 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
   static const Color _primaryAccent = Color(0xFF0984E3);
   static const Color _inputFill = Color(0xFFFDFDFD);
 
+  final nameController = TextEditingController();
   final emailController = TextEditingController();
-  final otpController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final phoneController = TextEditingController();
 
-  bool step2 = false;
   bool loading = false;
 
   final service = AuthService();
 
-  Future<void> checkEmail() async {
-    if (emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Enter email")));
-      return;
-    }
-
-    setState(() => loading = true);
-
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      final res = await service.verifyEmailRequest(
-        email: emailController.text.trim(),
-        authProvider: authProvider,
-      );
-
-      if (res == "Please verify your email.") {
-        setState(() => step2 = true);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  "Invitation found. Enter OTP & details to complete registration")),
-        );
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(res.toString())));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-
-    setState(() => loading = false);
-  }
-
-  Future<void> completeRegistration() async {
-    if (otpController.text.isEmpty ||
-        passwordController.text.isEmpty ||
-        confirmPasswordController.text.isEmpty ||
-        phoneController.text.isEmpty) {
+  Future<void> signUp() async {
+    if (nameController.text.trim().isEmpty ||
+        emailController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty ||
+        phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Fill all fields")),
+        const SnackBar(content: Text("All fields are required")),
       );
       return;
     }
@@ -89,25 +51,36 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      await service.completeRegistration(
+      await service.signUp(
         email: emailController.text.trim(),
-        otp: otpController.text.trim(),
         password: passwordController.text.trim(),
+        name: nameController.text.trim(),
         phone: phoneController.text.trim(),
         authProvider: authProvider,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration completed successfully")),
+        const SnackBar(content: Text("Account created successfully!")),
       );
 
-      Navigator.pop(context);
+      // Navigate back or to home?
+      // Since saving login data usually triggers a state change in main.dart if listening..
+      // But here we might just want to pop back to login or let main handle it.
+      // If we are already logged in via provider, main.dart -> RolesPage.
+      // Navigator.pop might take us back to LoginScreen which is now redundant.
+      // Let's just pop, and main.dart checks auth state.
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Registration failed: $e")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
-
-    setState(() => loading = false);
   }
 
   @override
@@ -176,49 +149,45 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            step2
-                                ? "Enter the OTP sent by Admin & complete setup"
-                                : "Enter your email to check invitation",
-                            style: const TextStyle(
+                          const Text(
+                            "Sign up to get started",
+                            style: TextStyle(
                               fontSize: 15,
                               color: _textSecondary,
                             ),
                           ),
                           const SizedBox(height: 32),
                           _field(
+                            hint: "Full Name",
+                            icon: Icons.person_outline,
+                            controller: nameController,
+                          ),
+                          const SizedBox(height: 16),
+                          _field(
                             hint: "Email address",
                             icon: Icons.email_outlined,
                             controller: emailController,
                           ),
-                          if (step2) ...[
-                            const SizedBox(height: 16),
-                            _field(
-                              hint: "OTP Code",
-                              icon: Icons.verified_outlined,
-                              controller: otpController,
-                            ),
-                            const SizedBox(height: 16),
-                            _field(
-                              hint: "Phone Number",
-                              icon: Icons.phone_outlined,
-                              controller: phoneController,
-                            ),
-                            const SizedBox(height: 16),
-                            _field(
-                              hint: "Password",
-                              icon: Icons.lock_outline,
-                              controller: passwordController,
-                              isObscure: true,
-                            ),
-                            const SizedBox(height: 16),
-                            _field(
-                              hint: "Confirm Password",
-                              icon: Icons.lock_outline_rounded,
-                              controller: confirmPasswordController,
-                              isObscure: true,
-                            ),
-                          ],
+                          const SizedBox(height: 16),
+                          _field(
+                            hint: "Phone Number",
+                            icon: Icons.phone_outlined,
+                            controller: phoneController,
+                          ),
+                          const SizedBox(height: 16),
+                          _field(
+                            hint: "Password",
+                            icon: Icons.lock_outline,
+                            controller: passwordController,
+                            isObscure: true,
+                          ),
+                          const SizedBox(height: 16),
+                          _field(
+                            hint: "Confirm Password",
+                            icon: Icons.lock_outline_rounded,
+                            controller: confirmPasswordController,
+                            isObscure: true,
+                          ),
                           const SizedBox(height: 28),
                           SizedBox(
                             width: double.infinity,
@@ -233,11 +202,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              onPressed: loading
-                                  ? null
-                                  : step2
-                                      ? completeRegistration
-                                      : checkEmail,
+                              onPressed: loading ? null : signUp,
                               child: loading
                                   ? const SizedBox(
                                       height: 22,
@@ -246,9 +211,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                                           strokeWidth: 2.5,
                                           color: Colors.white),
                                     )
-                                  : Text(step2
-                                      ? "Complete Registration"
-                                      : "Verify Invitation"),
+                                  : const Text("Sign Up"),
                             ),
                           ),
                           const SizedBox(height: 20),
