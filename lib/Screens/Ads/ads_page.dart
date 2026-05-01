@@ -14,35 +14,7 @@ class AdsPage extends StatelessWidget {
     final provider = context.watch<AdsProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Manage Ads"),
-        actions: [
-          IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text("Pull to refresh is automatic via Stream")),
-              );
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-          IconButton(
-            icon: const Icon(Icons.group),
-            tooltip: "View Team Members",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const GenericTeamPage(
-                    role: "ADS",
-                    title: "Ads Team",
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
           context: context,

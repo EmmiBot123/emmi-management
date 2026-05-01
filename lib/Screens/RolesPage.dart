@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:emmi_management/Screens/Ads/ads_page.dart';
-
 import '../Providers/AuthProvider.dart';
 
 import 'Accounts/School_account_page.dart';
@@ -40,7 +38,6 @@ class _RolesPageState extends State<RolesPage> {
     "Accounts",
     "Operations",
     "Qubiq",
-    "Ads",
     "Testing",
   ];
   final allowedRoles = {
@@ -63,8 +60,6 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.precision_manufacturing_rounded;
       case "Qubiq":
         return Icons.api;
-      case "Ads":
-        return Icons.video_library;
       case "Testing":
         return Icons.bug_report;
       default:
@@ -86,8 +81,6 @@ class _RolesPageState extends State<RolesPage> {
         return const OperationsPage();
       case "Qubiq":
         return const QubiqPage();
-      case "Ads":
-        return const AdsPage();
       case "Testing":
         return const TestingPage();
       default:
@@ -122,7 +115,7 @@ class _RolesPageState extends State<RolesPage> {
     }
 
     if (userRole == "ADS") {
-      return ["Ads"];
+      return ["Qubiq"];
     }
 
     if (userRole == "TESTING") {
