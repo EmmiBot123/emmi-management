@@ -1,4 +1,4 @@
-import 'package:emmi_management/Resources/api_endpoints.dart';
+import 'package:qubiq_os/Resources/api_endpoints.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';

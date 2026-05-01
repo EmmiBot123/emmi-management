@@ -64,4 +64,32 @@ class ShippingDetails {
         "arrived": arrived,
         "arrivedDate": arrivedDate,
       };
+
+  ShippingDetails copyWith({
+    String? address,
+    String? city,
+    String? state,
+    String? pinCode,
+    String? country,
+    String? shippingNumber,
+    String? contactNumber,
+    String? photoUrl,
+    bool? passedToInstallation,
+    bool? arrived,
+    String? arrivedDate,
+  }) {
+    return ShippingDetails(
+      address: address ?? this.address,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      pinCode: pinCode ?? this.pinCode,
+      country: country ?? this.country,
+      shippingNumber: shippingNumber ?? this.shippingNumber,
+      contactNumber: contactNumber ?? this.contactNumber,
+      photoUrl: photoUrl ?? this.photoUrl,
+      passedToInstallation: passedToInstallation ?? this.passedToInstallation,
+      arrived: arrived ?? this.arrived,
+      arrivedDate: arrivedDate ?? this.arrivedDate,
+    );
+  }
 }

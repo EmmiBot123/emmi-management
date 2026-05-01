@@ -1,4 +1,4 @@
-import 'package:emmi_management/Model/productDetails/deliveryHistory.dart';
+import 'package:qubiq_os/Model/productDetails/deliveryHistory.dart';
 
 class ProductOption {
   final String id;

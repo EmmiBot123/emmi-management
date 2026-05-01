@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:emmi_management/Resources/api_endpoints.dart';
+import 'package:qubiq_os/Resources/api_endpoints.dart';
 import '../../../../Providers/Marketing/SchoolVisitProvider.dart';
 import '../../../../Model/Marketing/school_visit_model.dart';
 import '../../../Model/Marketing/Payment.dart';

@@ -395,6 +395,27 @@ class QubiqProvider extends ChangeNotifier {
     }
   }
 
+  /// Delete school visit completely
+  Future<bool> deleteSchool(String visitId) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final success = await _repository.deleteVisit(visitId);
+      if (success) {
+        confirmedSchools.removeWhere((v) => v.id == visitId);
+      }
+
+      return success;
+    } catch (e) {
+      errorMessage = e.toString();
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Search for any school by name (fetches all visits first if needed)
   Future<List<SchoolVisit>> searchSchools(String query) async {
     if (query.isEmpty) return [];

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../Model/Marketing/school_visit_model.dart';
 import '../../../../Model/Marketing/InstallationChecklistItem.dart';
 import '../../../../Providers/Marketing/SchoolVisitProvider.dart';
+import '../../../../Resources/theme_constants.dart';
 
 class InstallationChecklistPage extends StatefulWidget {
   final SchoolVisit visit;
@@ -39,7 +40,7 @@ class _InstallationChecklistPageState extends State<InstallationChecklistPage> {
   final TextEditingController customCtrl = TextEditingController();
 
   bool get canCheck => widget.role == "INSTALLATION" || widget.role == "ADMIN";
-
+  bool get canAdd => widget.role == "INSTALLATION" || widget.role == "ADMIN";
   bool get isAdmin => widget.role == "ADMIN";
 
   @override
@@ -54,36 +55,27 @@ class _InstallationChecklistPageState extends State<InstallationChecklistPage> {
     return done / items.length;
   }
 
-  /// ================= SAVE TO SERVER =================
   Future<void> saveToServer() async {
     widget.visit.installationChecklist = items;
     await context.read<SchoolVisitProvider>().updateVisit(widget.visit);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Checklist updated successfully")),
-    );
-
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void showAddSheet() {
-    if (!isAdmin) return;
-
     final temp = List<bool>.filled(defaultTasks.length, false);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) => Padding(
         padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-
-          /// 👇 IMPORTANT FIX FOR KEYBOARD OVERFLOW
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          left: 24,
+          right: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           top: 16,
         ),
         child: StatefulBuilder(
@@ -91,82 +83,88 @@ class _InstallationChecklistPageState extends State<InstallationChecklistPage> {
             return SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    height: 5,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey,
-                      borderRadius: BorderRadius.circular(10),
+                  Center(
+                    child: Container(
+                      height: 4,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 24),
                   const Text(
-                    "Add Installation Checklist",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    "Add Mission Tasks",
+                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 20),
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 350,
+                  const SizedBox(height: 16),
+                  
+                  // Default Tasks List
+                  Container(
+                    height: 250,
+                    decoration: BoxDecoration(
+                      color: AppColors.bg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.surfaceLight),
+                    ),
                     child: ListView.builder(
                       itemCount: defaultTasks.length,
                       itemBuilder: (c, i) {
                         return CheckboxListTile(
                           value: temp[i],
-                          title: Text(defaultTasks[i]),
+                          activeColor: AppColors.accent,
+                          checkColor: Colors.white,
+                          title: Text(defaultTasks[i], style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                           onChanged: (v) => s(() => temp[i] = v!),
                         );
                       },
                     ),
                   ),
+                  
+                  const SizedBox(height: 20),
+                  
                   TextField(
                     controller: customCtrl,
-                    decoration: const InputDecoration(
-                      labelText: "Add Custom Task",
-                      border: OutlineInputBorder(),
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: "Custom Task Description",
+                      labelStyle: const TextStyle(color: AppColors.textMuted),
+                      filled: true,
+                      fillColor: AppColors.bg,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Cancel"),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            for (int i = 0; i < temp.length; i++) {
-                              if (temp[i]) {
-                                items.add(
-                                  InstallationChecklistItem(
-                                    title: defaultTasks[i],
-                                    completed: false,
-                                  ),
-                                );
-                              }
-                            }
+                  
+                  const SizedBox(height: 24),
+                  
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        for (int i = 0; i < temp.length; i++) {
+                          if (temp[i]) {
+                            items.add(InstallationChecklistItem(title: defaultTasks[i], completed: false));
+                          }
+                        }
 
-                            if (customCtrl.text.trim().isNotEmpty) {
-                              items.add(
-                                InstallationChecklistItem(
-                                  title: customCtrl.text.trim(),
-                                  completed: false,
-                                ),
-                              );
-                            }
+                        if (customCtrl.text.trim().isNotEmpty) {
+                          items.add(InstallationChecklistItem(title: customCtrl.text.trim(), completed: false));
+                        }
 
-                            customCtrl.clear();
-                            saveToServer();
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Add"),
-                        ),
+                        customCtrl.clear();
+                        saveToServer();
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                    ],
+                      child: const Text("Add to Checklist", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ],
               ),
@@ -177,69 +175,101 @@ class _InstallationChecklistPageState extends State<InstallationChecklistPage> {
     );
   }
 
-  /// ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: const Text("Installation Checklist"),
+        title: const Text("Mission Checklist"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.surfaceLight),
+            ),
+            child: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 16),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-
-      /// ADMIN ONLY CAN ADD
-      floatingActionButton: isAdmin
+      floatingActionButton: canAdd
           ? FloatingActionButton.extended(
               onPressed: showAddSheet,
-              label: const Text("Add Checklist"),
-              icon: const Icon(Icons.playlist_add_check),
+              backgroundColor: AppColors.accent,
+              label: const Text("Add Task", style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.add_task, color: Colors.white),
             )
           : null,
-
       body: Column(
         children: [
-          const SizedBox(height: 10),
-
-          /// PROGRESS BAR
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          // ── Progress Header ──
+          Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.surfaceLight),
+            ),
             child: Column(
               children: [
-                LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 10,
-                  borderRadius: BorderRadius.circular(10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Completion Progress", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                    Text("${(progress * 100).toStringAsFixed(0)}%", style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w900)),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Progress: ${(progress * 100).toStringAsFixed(0)}%",
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 8,
+                    backgroundColor: AppColors.bg,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 10),
-
           Expanded(
             child: items.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No checklist added",
-                      style: TextStyle(fontSize: 16),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.checklist_rtl_outlined, size: 64, color: AppColors.textMuted.withOpacity(0.2)),
+                        const SizedBox(height: 16),
+                        const Text("No tasks added for this mission.", style: TextStyle(color: AppColors.textMuted)),
+                      ],
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: items.length,
                     itemBuilder: (context, index) {
                       final item = items[index];
 
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: item.completed ? AppColors.accent.withOpacity(0.3) : AppColors.surfaceLight),
                         ),
                         child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           leading: Checkbox(
                             value: item.completed,
+                            activeColor: AppColors.accent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                             onChanged: canCheck
                                 ? (v) {
                                     setState(() {
@@ -252,20 +282,15 @@ class _InstallationChecklistPageState extends State<InstallationChecklistPage> {
                           title: Text(
                             item.title,
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              decoration: item.completed
-                                  ? TextDecoration.lineThrough
-                                  : null,
+                              color: item.completed ? AppColors.textMuted : AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                              decoration: item.completed ? TextDecoration.lineThrough : null,
                             ),
                           ),
-
-                          /// DELETE ONLY FOR ADMIN
-                          trailing: isAdmin
+                          trailing: canAdd
                               ? IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                                   onPressed: () {
                                     setState(() => items.removeAt(index));
                                     saveToServer();

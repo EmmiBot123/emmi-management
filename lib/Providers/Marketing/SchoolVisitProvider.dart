@@ -551,4 +551,32 @@ class SchoolVisitProvider extends ChangeNotifier {
 
     return null;
   }
+
+  Future<bool> sendToInstallation(SchoolVisit visit) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final updatedVisit = visit.copyWith(
+        shippingDetails: visit.shippingDetails.copyWith(passedToInstallation: true),
+      );
+
+      await repository.updateVisit(updatedVisit);
+
+      // Locally update
+      final idx = visits.indexWhere((v) => v.id == visit.id);
+      if (idx != -1) visits[idx] = updatedVisit;
+
+      assemblyVisits.removeWhere((v) => v.id == visit.id);
+      installationVisits.add(updatedVisit);
+
+      return true;
+    } catch (e) {
+      errorMessage = e.toString();
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
 }

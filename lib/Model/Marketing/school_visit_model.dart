@@ -40,6 +40,9 @@ class SchoolVisit {
   LabInformation labInformation;
   String? otherRequirements;
 
+  List<String> itemsTaught;
+  List<String> installationIssues;
+
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -70,14 +73,19 @@ class SchoolVisit {
     this.otherRequirements,
     this.createdAt,
     this.updatedAt,
+    List<String>? itemsTaught,
+    List<String>? installationIssues,
     Map<String, String>? sharedUsers,
     List<SharedUserNote>? sharedNotes,
   })  : sharedUsers = sharedUsers ?? {},
-        sharedNotes = sharedNotes ?? [];
+        sharedNotes = sharedNotes ?? [],
+        itemsTaught = itemsTaught ?? [],
+        installationIssues = installationIssues ?? [];
   SchoolVisit copyWith({
     SchoolProfile? schoolProfile,
     VisitDetails? visitDetails,
     String? schoolCode,
+    ShippingDetails? shippingDetails,
   }) {
     return SchoolVisit(
       id: id,
@@ -94,13 +102,15 @@ class SchoolVisit {
       visitDetails: visitDetails ?? this.visitDetails,
       purchaseOrder: purchaseOrder,
       payment: payment,
-      shippingDetails: shippingDetails,
+      shippingDetails: shippingDetails ?? this.shippingDetails,
       requiredProducts: requiredProducts,
       labInformation: labInformation,
       otherRequirements: otherRequirements,
       createdAt: createdAt,
       updatedAt: updatedAt,
       installationChecklist: installationChecklist,
+      itemsTaught: itemsTaught,
+      installationIssues: installationIssues,
     );
   }
 
@@ -132,6 +142,8 @@ class SchoolVisit {
               ?.map((e) => InstallationChecklistItem.fromJson(e))
               .toList() ??
           [],
+      itemsTaught: (json["itemsTaught"] as List?)?.map((e) => e.toString()).toList() ?? [],
+      installationIssues: (json["installationIssues"] as List?)?.map((e) => e.toString()).toList() ?? [],
       sharedUsers: (json["sharedUsers"] as Map?)
               ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
           {},
@@ -178,6 +190,8 @@ class SchoolVisit {
       "requiredProducts": requiredProducts.map((e) => e.toJson()).toList(),
       "labInformation": labInformation.toJson(),
       "otherRequirements": otherRequirements,
+      "itemsTaught": itemsTaught,
+      "installationIssues": installationIssues,
       "sharedUsers": sharedUsers,
       "sharedNotes": sharedNotes.map((e) => e.toJson()).toList(),
       "createdAt": createdAt?.toIso8601String(),

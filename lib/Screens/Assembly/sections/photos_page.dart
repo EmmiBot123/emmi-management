@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:emmi_management/Resources/api_endpoints.dart';
+import 'package:qubiq_os/Resources/api_endpoints.dart';
 
 class PhotosPage extends StatelessWidget {
   final List<String> uploadedUrls;

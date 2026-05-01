@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import '../Providers/AuthProvider.dart';
 
 import 'Accounts/School_account_page.dart';
@@ -172,20 +173,17 @@ class _RolesPageState extends State<RolesPage> {
     );
   }
 
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    // Safety check: if role is missing despite being logged in, force logout or show error
     if (auth.role == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.read<AuthProvider>().logout();
       });
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final String userRole = auth.role!;
@@ -200,27 +198,35 @@ class _RolesPageState extends State<RolesPage> {
 
     return Scaffold(
       backgroundColor: isDashboard ? _P.bg : null,
-      // No AppBar at all — we handle navigation via the overlay
       body: Stack(
         children: [
           // Main content fills the entire screen
           Positioned.fill(
             child: Navigator(
-              key: ValueKey(visibleRoles[selectedIndex]),
+              key: ValueKey("nav_${visibleRoles[selectedIndex]}"),
               onGenerateRoute: (_) => MaterialPageRoute(
                 builder: (_) => getRolePage(visibleRoles[selectedIndex]),
               ),
             ),
           ),
 
-          // Floating hamburger menu button
+          // Floating hamburger menu button - morphs into Back button if needed
           if (showMenuButton)
             Positioned(
               top: MediaQuery.of(context).padding.top + 12,
               left: 12,
               child: _FloatingMenuButton(
+                navKey: _navKey,
                 isDashboard: isDashboard,
-                onTap: () => _openNavOverlay(visibleRoles),
+                onTap: () {
+                  final nav = _navKey.currentState;
+                  if (nav != null && nav.canPop()) {
+                    nav.pop();
+                    setState(() {}); // Refresh icon
+                  } else {
+                    _openNavOverlay(visibleRoles);
+                  }
+                },
               ),
             ),
         ],
@@ -233,10 +239,12 @@ class _RolesPageState extends State<RolesPage> {
 //  Floating Menu Button
 // ═══════════════════════════════════════════════════════
 class _FloatingMenuButton extends StatefulWidget {
+  final GlobalKey<NavigatorState> navKey;
   final bool isDashboard;
   final VoidCallback onTap;
 
   const _FloatingMenuButton({
+    required this.navKey,
     required this.isDashboard,
     required this.onTap,
   });
@@ -250,6 +258,9 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
 
   @override
   Widget build(BuildContext context) {
+    // Check the NESTED navigator's state specifically
+    final canPop = widget.navKey.currentState?.canPop() ?? false;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -261,34 +272,25 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: _hovering
-                ? (widget.isDashboard
-                    ? _P.surfaceLight
-                    : Colors.grey.shade200)
-                : (widget.isDashboard
-                    ? _P.surface
-                    : Colors.white),
+                ? (widget.isDashboard ? _P.surfaceLight : Colors.grey.shade200)
+                : (widget.isDashboard ? _P.surface : Colors.white),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: widget.isDashboard
-                  ? _P.surfaceLight
-                  : Colors.grey.shade300,
+              color: widget.isDashboard ? _P.surfaceLight : Colors.grey.shade300,
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(
-                    widget.isDashboard ? 0.3 : 0.08),
+                color: Colors.black.withOpacity(widget.isDashboard ? 0.3 : 0.08),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Icon(
-            Icons.menu,
+            canPop ? Icons.arrow_back : Icons.menu,
             size: 22,
-            color: widget.isDashboard
-                ? _P.textSecondary
-                : Colors.grey.shade700,
+            color: widget.isDashboard ? _P.textSecondary : Colors.grey.shade700,
           ),
         ),
       ),
@@ -362,7 +364,7 @@ class _NavPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "EMMI",
+                        "QUBIQ",
                         style: TextStyle(
                           color: _P.textPrimary,
                           fontSize: 18,
@@ -371,7 +373,7 @@ class _NavPanel extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        "Management Console",
+                        "Operating System",
                         style: TextStyle(
                           color: _P.textMuted,
                           fontSize: 11,
@@ -452,6 +454,93 @@ class _NavPanel extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(height: 1, color: _P.surfaceLight),
+            ),
+
+            // ── Download APK Card ──
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _P.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _P.surfaceLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.android,
+                              color: Colors.greenAccent, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Mobile App",
+                                style: TextStyle(
+                                  color: _P.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                "v1.0.0 • APK",
+                                style: TextStyle(
+                                  color: _P.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          launchUrlString("/qubiq_os.apk");
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _P.accent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.file_download, size: 16),
+                            SizedBox(width: 8),
+                            Text("Download APK",
+                                style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             // ── Logout ──

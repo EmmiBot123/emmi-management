@@ -23,69 +23,72 @@ class _CourseListTabState extends State<CourseListTab> {
   Widget build(BuildContext context) {
     final provider = context.watch<CourseProvider>();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Manage Courses"),
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+      ),
+      backgroundColor: const Color(0xFFF5F6FA),
+      body: Column(
+        children: [
+          Padding(
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Courses",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9)),
+                "Available Courses (${provider.courses.length})",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const Spacer(),
-              IconButton(
+              ElevatedButton.icon(
                 onPressed: () async {
-                  final result = await showDialog(context: context, builder: (_) => const CreateCourseDialog());
+                  final result = await showDialog(
+                    context: context,
+                    builder: (_) => const CreateCourseDialog(),
+                  );
                   if (result != null) {
                     final success = await provider.addCourse(result);
                     if (success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Course created successfully")));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("Course created successfully")),
+                      );
                     }
                   }
                 },
-                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF38BDF8)),
+                icon: const Icon(Icons.add),
+                label: const Text("Create Course"),
               ),
             ],
           ),
         ),
         Expanded(
           child: provider.isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
+              ? const Center(child: CircularProgressIndicator())
               : provider.courses.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                      physics: const BouncingScrollPhysics(),
                       itemCount: provider.courses.length,
                       itemBuilder: (context, index) {
                         final course = provider.courses[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B).withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.05)),
-                          ),
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF38BDF8).withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.book_rounded, color: Color(0xFF38BDF8), size: 20),
-                            ),
-                            title: Text(course.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15)),
+                            leading:
+                                const CircleAvatar(child: Icon(Icons.book)),
+                            title: Text(course.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             subtitle: Text(
-                              "${course.category} • ${course.duration} • ₹${course.price}",
-                              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
-                            ),
+                                "${course.category} • ${course.duration} • ₹${course.price}"),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
-                              onPressed: () => _confirmDelete(context, provider, course.id),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red),
+                              onPressed: () =>
+                                  _confirmDelete(context, provider, course.id),
                             ),
                           ),
                         );
@@ -93,6 +96,7 @@ class _CourseListTabState extends State<CourseListTab> {
                     ),
         ),
       ],
+    ),
     );
   }
 

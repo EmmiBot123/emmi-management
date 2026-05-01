@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +11,8 @@ import 'search_school_dialog.dart';
 import 'course_list_tab.dart';
 import '../Ads/ads_page.dart';
 import '../../Model/Marketing/school_visit_model.dart';
+import '../../Model/Testing/feedback_model.dart';
+import '../../Repository/Testing/testing_repository.dart';
 
 class QubiqPage extends StatefulWidget {
   const QubiqPage({super.key});
@@ -18,24 +21,14 @@ class QubiqPage extends StatefulWidget {
   State<QubiqPage> createState() => _QubiqPageState();
 }
 
-class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMixin {
-  int _tabIndex = 0; // 0 = Schools, 1 = Courses, 2 = Ads
-  late AnimationController _heroController;
-  late Animation<double> _heroAnim;
+class _QubiqPageState extends State<QubiqPage> {
+  late PageController _pageController;
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _heroController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _heroAnim = CurvedAnimation(
-      parent: _heroController,
-      curve: Curves.easeOutCubic,
-    );
-    _heroController.forward();
-
+    _pageController = PageController(initialPage: 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<QubiqProvider>().loadConfirmedSchools("");
     });
@@ -43,213 +36,114 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
-    _heroController.dispose();
+    _pageController.dispose();
     super.dispose();
-  }
-
-  void _selectTab(int index) {
-    if (index == _tabIndex) return;
-    setState(() => _tabIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    final width = MediaQuery.of(context).size.width;
     final provider = context.watch<QubiqProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      body: Column(
+      backgroundColor: const Color(0xFF020617), // Deep Obsidian
+      body: Stack(
         children: [
-          // ═══════════ HERO HEADER ═══════════
-          FadeTransition(
-            opacity: _heroAnim,
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                top: topPad + 52,
-                left: 24,
-                right: 24,
-                bottom: 28,
-              ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Decorative tech lines/circles
-                  Positioned(
-                    right: -20,
-                    top: -40,
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.05), width: 20),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: -30,
-                    bottom: -20,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: const Color(0xFF38BDF8).withOpacity(0.1),
-                            width: 2),
-                      ),
-                    ),
-                  ),
-
-                  // Content
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          // 1. Animated Mesh Gradient Blobs
+          Positioned(
+            top: -100,
+            right: -100,
+            child: _buildBlob(300, const Color(0xFF1E40AF).withOpacity(0.2)), // Blue
+          ),
+          Positioned(
+            bottom: 100,
+            left: -150,
+            child: _buildBlob(400, const Color(0xFF701A75).withOpacity(0.15)), // Purple
+          ),
+          
+          // 2. Main Content
+          SafeArea(
+            child: Column(
+              children: [
+                // Top Action Bar
+                Padding(
+                  padding: const EdgeInsets.only(left: 64, right: 24, top: 16, bottom: 16),
+                  child: Row(
                     children: [
-                      // Title
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF38BDF8).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: const Color(0xFF38BDF8)
-                                      .withOpacity(0.3)),
-                            ),
-                            child: const Icon(Icons.api,
-                                color: Color(0xFF38BDF8), size: 22),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Qubiq Core",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              Text(
-                                "Infrastructure & Content",
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Support Tickets Quick Action ──
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SupportTicketListPage(),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                                color: Colors.white.withOpacity(0.1)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.support_agent,
-                                  color: Color(0xFF38BDF8), size: 18),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  "Manage Support Tickets",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              Icon(Icons.arrow_forward_ios,
-                                  color: Colors.white.withOpacity(0.3),
-                                  size: 14),
-                            ],
-                          ),
+                      const Text(
+                        "QUBIQ",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2,
                         ),
                       ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Segmented Toggle ──
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: Colors.white.withOpacity(0.05)),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildSegment("Schools", Icons.business, 0, width),
-                            _buildSegment("Courses", Icons.school, 1, width),
-                            _buildSegment("Ads", Icons.video_library, 2, width),
-                          ],
-                        ),
+                      const Spacer(),
+                      _buildTopButton(
+                        icon: Icons.support_agent,
+                        label: "Support",
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportTicketListPage())),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+
+                // Fluid Page View
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) => setState(() => _currentIndex = index),
+                    physics: const BouncingScrollPhysics(),
+                    children: [
+                      _buildSchoolsTab(provider),
+                      const CourseListTab(),
+                      const AdsPage(),
+                      const _TestingReportsSection(),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // ═══════════ CONTENT ═══════════
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeOutCubic,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.04),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+          // 3. Glowing Obsidian Floating Dock
+          Positioned(
+            bottom: 24,
+            left: 24,
+            right: 24,
+            child: Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.5),
+                          blurRadius: 30,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDockItem(0, Icons.business_rounded, "Schools"),
+                        const SizedBox(width: 4),
+                        _buildDockItem(1, Icons.school_rounded, "Courses"),
+                        const SizedBox(width: 4),
+                        _buildDockItem(2, Icons.video_library_rounded, "Ads"),
+                        const SizedBox(width: 4),
+                        _buildDockItem(3, Icons.bug_report_rounded, "Reports"),
+                      ],
+                    ),
                   ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey(_tabIndex),
-                child: _getContent(provider),
+                ),
               ),
             ),
           ),
@@ -258,335 +152,248 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildSegment(
-      String label, IconData icon, int index, double screenWidth) {
-    final isActive = _tabIndex == index;
-    final isSmall = screenWidth < 400;
+  Widget _buildBlob(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+        child: Container(color: Colors.transparent),
+      ),
+    );
+  }
 
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _selectTab(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: isSmall ? 4 : 8,
-          ),
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF38BDF8) : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF38BDF8).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isActive ? Colors.white : Colors.white.withOpacity(0.5),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    color:
-                        isActive ? Colors.white : Colors.white.withOpacity(0.5),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+  Widget _buildTopButton({required IconData icon, required String label, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF38BDF8).withOpacity(0.1),
+            blurRadius: 10,
+          )
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1E293B),
+          foregroundColor: const Color(0xFF38BDF8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          side: BorderSide(color: const Color(0xFF38BDF8).withOpacity(0.3)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
   }
 
-  Widget _getContent(QubiqProvider provider) {
-    if (_tabIndex == 0) {
-      return _buildSchoolsTab(provider);
-    } else if (_tabIndex == 1) {
-      return const CourseListTab();
-    } else {
-      return const AdsPage();
-    }
+  Widget _buildDockItem(int index, IconData icon, String label) {
+    final isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => _pageController.animateToPage(index, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF38BDF8).withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isSelected ? const Color(0xFF38BDF8) : Colors.white.withOpacity(0.35), size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF38BDF8) : Colors.white.withOpacity(0.35),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSchoolsTab(QubiqProvider provider) {
     return provider.isLoading && provider.confirmedSchools.isEmpty
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
         : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Confirmed Schools (${provider.confirmedSchools.length})",
-                      style: const TextStyle(
-                        fontSize: 18,
+                      "Schools",
+                      style: TextStyle(
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => const SearchSchoolDialog(),
-                        );
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text("Manual Config"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF38BDF8).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
                       ),
+                      child: Text(
+                        provider.confirmedSchools.length.toString(),
+                        style: const TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        showDialog(context: context, builder: (_) => const SearchSchoolDialog());
+                      },
+                      icon: const Icon(Icons.add_circle_outline, color: Color(0xFF38BDF8)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () => provider.loadConfirmedSchools(""),
+                    backgroundColor: const Color(0xFF1E293B),
+                    color: const Color(0xFF38BDF8),
                     child: provider.confirmedSchools.isEmpty
                         ? _emptyState()
                         : ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 120),
+                            physics: const BouncingScrollPhysics(),
                             itemCount: provider.confirmedSchools.length,
                             itemBuilder: (context, index) {
                               final school = provider.confirmedSchools[index];
                               final isPending = school.adminId == 'PENDING_SETUP';
-                              final hasAdmin = school.adminId != null &&
-                                  school.adminId!.isNotEmpty &&
-                                  !isPending;
+                              final hasAdmin = school.adminId != null && school.adminId!.isNotEmpty && !isPending;
 
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                      color: Colors.grey.withOpacity(0.2)),
+                              Color statusColor = Colors.red.shade400;
+                              if (hasAdmin) statusColor = Colors.green.shade400;
+                              if (isPending) statusColor = Colors.orange.shade400;
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B).withOpacity(0.4),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
                                 ),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) =>
-                                          SchoolDetailDialog(school: school),
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                    child: InkWell(
+                                      onTap: () {
+                                        showDialog(context: context, builder: (_) => SchoolDetailDialog(school: school));
+                                      },
+                                      child: IntrinsicHeight(
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(10),
-                                              decoration: BoxDecoration(
-                                                color: hasAdmin
-                                                    ? Colors.green.withOpacity(0.1)
-                                                    : isPending
-                                                        ? Colors.orange.withOpacity(0.1)
-                                                        : Colors.red.withOpacity(0.1),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                hasAdmin
-                                                    ? Icons.check_circle_outline
-                                                    : isPending
-                                                        ? Icons.schedule
-                                                        : Icons.error_outline,
-                                                color: hasAdmin
-                                                    ? Colors.green
-                                                    : isPending
-                                                        ? Colors.orange
-                                                        : Colors.red,
-                                                size: 24,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
+                                            // Status Accent Bar
+                                            Container(width: 6, color: statusColor),
                                             Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    school.schoolProfile.name,
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 16,
-                                                      color: Color(0xFF0F172A),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(24.0),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            school.schoolProfile.name,
+                                                            style: const TextStyle(
+                                                              color: Colors.white,
+                                                              fontSize: 18,
+                                                              fontWeight: FontWeight.bold,
+                                                              letterSpacing: 0.2,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3)),
+                                                      ],
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  if (school.schoolProfile.city
-                                                          .isNotEmpty &&
-                                                      school.schoolProfile.state
-                                                          .isNotEmpty &&
-                                                      school.schoolProfile.city !=
-                                                          "Unknown" &&
-                                                      school.schoolProfile.state !=
-                                                          "Unknown")
-                                                    Text(
-                                                      "${school.schoolProfile.city}, ${school.schoolProfile.state}",
-                                                      style: TextStyle(
-                                                        color: Colors.grey
-                                                            .shade600,
-                                                        fontSize: 13,
-                                                      ),
+                                                    const SizedBox(height: 6),
+                                                    Row(
+                                                      children: [
+                                                        Icon(Icons.location_on_outlined, size: 14, color: Colors.white.withOpacity(0.5)),
+                                                        const SizedBox(width: 4),
+                                                        Text(
+                                                          "${school.schoolProfile.city}, ${school.schoolProfile.state}",
+                                                          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                                                        ),
+                                                      ],
                                                     ),
-                                                ],
+                                                    const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Colors.white10)),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: statusColor.withOpacity(0.1),
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            border: Border.all(color: statusColor.withOpacity(0.2)),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Icon(
+                                                                hasAdmin ? Icons.verified : isPending ? Icons.timer : Icons.warning_amber_rounded,
+                                                                size: 14,
+                                                                color: statusColor,
+                                                               ),
+                                                              const SizedBox(width: 6),
+                                                              Text(
+                                                                hasAdmin ? "Active" : isPending ? "Setup Pending" : "No Admin",
+                                                                style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const Spacer(),
+                                                        if (hasAdmin)
+                                                          _buildSmallButton(
+                                                            "Manage Keys",
+                                                            const Color(0xFF38BDF8),
+                                                            () => showDialog(context: context, builder: (_) => ManageKeysDialog(school: school)),
+                                                          )
+                                                        else
+                                                          _buildSmallButton(
+                                                            isPending ? "Resend Link" : "Setup Admin",
+                                                            isPending ? Colors.orange.shade400 : const Color(0xFF38BDF8),
+                                                            () => showDialog(context: context, builder: (_) => CreateAdminDialog(school: school)),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 16),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
-                                                color: Colors.grey.shade200),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: hasAdmin
-                                                    ? Text(
-                                                        "Admin: ${school.adminName ?? 'Unknown'}",
-                                                        style: const TextStyle(
-                                                            color: Colors.green,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontSize: 13),
-                                                      )
-                                                    : isPending
-                                                        ? Text(
-                                                            "Setup Link Sent to: ${school.adminName}",
-                                                            style: TextStyle(
-                                                                color: Colors.orange.shade800,
-                                                                fontWeight:
-                                                                    FontWeight.w500,
-                                                                fontSize: 13),
-                                                          )
-                                                        : const Text(
-                                                            "No Admin Account",
-                                                            style: TextStyle(
-                                                                color: Colors.red,
-                                                                fontWeight:
-                                                                    FontWeight.w500,
-                                                                fontSize: 13),
-                                                          ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: [
-                                            if (hasAdmin) ...[
-                                              TextButton.icon(
-                                                onPressed: () => _showRemoveAdminDialog(context, school),
-                                                icon: const Icon(
-                                                    Icons.delete_outline,
-                                                    size: 18),
-                                                label: const Text("Remove"),
-                                                style: TextButton.styleFrom(
-                                                    foregroundColor: Colors.red),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              ElevatedButton.icon(
-                                                onPressed: () {
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (_) =>
-                                                        ManageKeysDialog(
-                                                            school: school),
-                                                  );
-                                                },
-                                                icon: const Icon(Icons.key,
-                                                    size: 16),
-                                                label: const Text("Manage Keys"),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      const Color(0xFF38BDF8),
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8)),
-                                                ),
-                                              ),
-                                            ] else ...[
-                                              if (isPending)
-                                                TextButton(
-                                                  onPressed: () => _showManualCompleteDialog(context, school),
-                                                  child: const Text(
-                                                      "Manual Complete",
-                                                      style: TextStyle(
-                                                          fontSize: 13)),
-                                                ),
-                                              ElevatedButton(
-                                                onPressed: () {
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (_) =>
-                                                        CreateAdminDialog(
-                                                            school: school),
-                                                  );
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: isPending
-                                                      ? Colors.orange.shade600
-                                                      : const Color(0xFF0F172A),
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8)),
-                                                ),
-                                                child: Text(isPending
-                                                    ? "Update/Resend"
-                                                    : "Create Admin"),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -598,6 +405,24 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
               ],
             ),
           );
+  }
+
+  Widget _buildSmallButton(String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+      ),
+    );
   }
 
   void _showRemoveAdminDialog(BuildContext context, SchoolVisit school) {
@@ -662,14 +487,155 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.school_outlined, size: 60, color: Colors.grey.shade400),
+          Icon(Icons.school_outlined, size: 50, color: Colors.white.withOpacity(0.15)),
           const SizedBox(height: 16),
           Text(
             "No confirmed schools found",
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.3)),
           ),
         ],
       ),
     );
   }
 }
+
+class _TestingReportsSection extends StatefulWidget {
+  const _TestingReportsSection();
+
+  @override
+  State<_TestingReportsSection> createState() => _TestingReportsSectionState();
+}
+
+class _TestingReportsSectionState extends State<_TestingReportsSection> {
+  final TestingRepository _repository = TestingRepository();
+  bool _isLoading = true;
+  List<TestingFeedback> _feedbackList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFeedback();
+  }
+
+  Future<void> _fetchFeedback() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    final data = await _repository.getAllFeedback();
+    if (!mounted) return;
+    setState(() {
+      _feedbackList = data;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8)));
+    }
+    if (_feedbackList.isEmpty) {
+      return Center(child: Text("No testing feedback found.", style: TextStyle(color: Colors.white.withOpacity(0.3))));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+      physics: const BouncingScrollPhysics(),
+      itemCount: _feedbackList.length,
+      itemBuilder: (context, index) {
+        final fb = _feedbackList[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B).withOpacity(0.4),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              )
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF38BDF8).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.2)),
+                          ),
+                          child: Text(
+                            fb.section.toUpperCase(),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF38BDF8), letterSpacing: 0.5),
+                          ),
+                        ),
+                        Text(
+                          "${fb.createdAt.day}/${fb.createdAt.month}/${fb.createdAt.year}",
+                          style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: const Color(0xFF38BDF8).withOpacity(0.1),
+                          child: const Icon(Icons.person, size: 12, color: Color(0xFF38BDF8)),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          fb.createdByName,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Divider(color: Colors.white10),
+                    ),
+                    if (fb.errorText.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.error_outline, size: 14, color: Colors.red.shade400),
+                          const SizedBox(width: 6),
+                          Text("ERROR REPORT", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade400, fontSize: 10, letterSpacing: 1)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(fb.errorText, style: TextStyle(color: Colors.white.withOpacity(0.8), height: 1.5, fontSize: 14)),
+                      const SizedBox(height: 16),
+                    ],
+                    if (fb.updateText.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline, size: 14, color: Colors.green.shade400),
+                          const SizedBox(width: 6),
+                          Text("SUGGESTED UPDATE", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade400, fontSize: 10, letterSpacing: 1)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(fb.updateText, style: TextStyle(color: Colors.white.withOpacity(0.8), height: 1.5, fontSize: 14)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+

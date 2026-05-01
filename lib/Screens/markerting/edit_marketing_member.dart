@@ -1,4 +1,4 @@
-import 'package:emmi_management/Model/User_model.dart';
+import 'package:qubiq_os/Model/User_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../Model/Marketing_member.dart';

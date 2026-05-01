@@ -1,9 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:emmi_management/firebase_options.dart';
-import 'package:emmi_management/Providers/Product/ProductProvider.dart';
-import 'package:emmi_management/Providers/BillProvider.dart';
-import 'package:emmi_management/Providers/Qubiq/QubiqProvider.dart';
-import 'package:emmi_management/Providers/Ads/AdsProvider.dart';
+import 'package:qubiq_os/firebase_options.dart';
+import 'package:qubiq_os/Providers/Product/ProductProvider.dart';
+import 'package:qubiq_os/Providers/BillProvider.dart';
+import 'package:qubiq_os/Providers/Qubiq/QubiqProvider.dart';
+import 'package:qubiq_os/Providers/Ads/AdsProvider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'Providers/AuthProvider.dart';

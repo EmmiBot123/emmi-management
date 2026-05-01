@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../Providers/AuthProvider.dart';
+import '../../Resources/theme_constants.dart';
 import 'Assembly/School_assembly_page.dart';
 import 'Installation/installation_team_page.dart';
 
-/// Combined Operations page merging Assembly + Installation
-/// with a segmented toggle matching the Sales page style.
 class OperationsPage extends StatefulWidget {
   const OperationsPage({super.key});
 
@@ -14,9 +13,8 @@ class OperationsPage extends StatefulWidget {
   State<OperationsPage> createState() => _OperationsPageState();
 }
 
-class _OperationsPageState extends State<OperationsPage>
-    with SingleTickerProviderStateMixin {
-  int _tabIndex = 0; // 0 = Assembly, 1 = Installation
+class _OperationsPageState extends State<OperationsPage> with SingleTickerProviderStateMixin {
+  int _tabIndex = 1; 
   late AnimationController _heroController;
   late Animation<double> _heroAnim;
 
@@ -49,184 +47,88 @@ class _OperationsPageState extends State<OperationsPage>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final userRole = auth.role ?? "";
-    final topPad = MediaQuery.of(context).padding.top;
-    final width = MediaQuery.of(context).size.width;
 
-    // Individual role users bypass the toggle
-    if (userRole == "ASSEMBLY_TEAM") {
-      return const SchoolAssemblyPage();
-    }
-    if (userRole == "INSTALLATION_TEAM") {
-      return const InstallationTeamPage();
-    }
+    if (userRole == "ASSEMBLY_TEAM") return const SchoolAssemblyPage();
+    if (userRole == "INSTALLATION_TEAM") return const InstallationTeamPage();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text(
+          "Operations",
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.bg,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.surfaceLight),
+            ),
+            child: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 16),
+          ),
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.precision_manufacturing_outlined, color: AppColors.accent, size: 20),
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // ═══════════ HERO HEADER ═══════════
-          FadeTransition(
-            opacity: _heroAnim,
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.only(
-                top: topPad + 52,
-                left: 24,
-                right: 24,
-                bottom: 28,
-              ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF0D7377), Color(0xFF14BDAC)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          // ── Header Segment (Toggle) ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(32), bottomRight: Radius.circular(32)),
+              border: Border(bottom: BorderSide(color: AppColors.surfaceLight)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Qubiq OS Workflow Engine",
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                 ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Decorative circles
-                  Positioned(
-                    right: -35,
-                    top: -50,
-                    child: Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.06),
-                      ),
-                    ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.bg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.surfaceLight),
                   ),
-                  Positioned(
-                    left: -20,
-                    bottom: -25,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.04),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 50,
-                    bottom: 15,
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.07),
-                      ),
-                    ),
-                  ),
-
-                  // Content
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      // Title
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: Colors.white.withOpacity(0.1)),
-                            ),
-                            child: const Icon(Icons.precision_manufacturing,
-                                color: Colors.white, size: 22),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Operations",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                              Text(
-                                "Assembly & Installation teams",
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ── Segmented Toggle ──
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: Colors.white.withOpacity(0.08)),
-                        ),
-                        child: Row(
-                          children: [
-                            _buildSegment(
-                              "Assembly",
-                              Icons.build,
-                              0,
-                              width,
-                            ),
-                            _buildSegment(
-                              "Installation",
-                              Icons.engineering,
-                              1,
-                              width,
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildSegment("Assembly", Icons.build_circle_outlined, 0),
+                      _buildSegment("Installation", Icons.engineering_outlined, 1),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
-          // ═══════════ CONTENT ═══════════
+          // ── Content ──
           Expanded(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 400),
               switchInCurve: Curves.easeOutCubic,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.04),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
               child: KeyedSubtree(
                 key: ValueKey(_tabIndex),
-                child: _tabIndex == 0
-                    ? const SchoolAssemblyPage()
-                    : const InstallationTeamPage(),
+                child: _tabIndex == 0 ? const SchoolAssemblyPage() : const InstallationTeamPage(),
               ),
             ),
           ),
@@ -235,54 +137,24 @@ class _OperationsPageState extends State<OperationsPage>
     );
   }
 
-  Widget _buildSegment(
-      String label, IconData icon, int index, double screenWidth) {
+  Widget _buildSegment(String label, IconData icon, int index) {
     final isActive = _tabIndex == index;
-
     return Expanded(
       child: GestureDetector(
         onTap: () => _selectTab(index),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            color: isActive ? AppColors.surfaceLight : Colors.transparent,
+            borderRadius: BorderRadius.circular(15),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isActive
-                    ? const Color(0xFF0D7377)
-                    : Colors.white.withOpacity(0.5),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-                    color: isActive
-                        ? const Color(0xFF0D7377)
-                        : Colors.white.withOpacity(0.5),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              Icon(icon, size: 18, color: isActive ? AppColors.accent : AppColors.textMuted),
+              const SizedBox(width: 10),
+              Text(label, style: TextStyle(fontSize: 14, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? AppColors.textPrimary : AppColors.textMuted)),
             ],
           ),
         ),
