@@ -22,25 +22,30 @@ class UserProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(ApiEndpoints.getUsers);
-      final response = await http.get(url);
+      try {
+        final url = Uri.parse(ApiEndpoints.getUsers);
+        final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        final List jsonList = jsonDecode(response.body);
+        if (response.statusCode == 200) {
+          final List jsonList = jsonDecode(response.body);
 
-        final List<UserModel> allUsers =
-            jsonList.map((item) => UserModel.fromJson(item)).toList();
+          final List<UserModel> allUsers =
+              jsonList.map((item) => UserModel.fromJson(item)).toList();
 
-        admin = allUsers
-            .where((user) =>
-                user.role != null && user.role!.toLowerCase() == "admin")
-            .toList();
+          admin = allUsers
+              .where((user) =>
+                  user.role != null && user.role!.toLowerCase() == "admin")
+              .toList();
 
-        admin.sort((a, b) => (a.name ?? "")
-            .toLowerCase()
-            .compareTo((b.name ?? "").toLowerCase()));
-      } else {
-        print("API error: ${response.statusCode}");
+          admin.sort((a, b) => (a.name ?? "")
+              .toLowerCase()
+              .compareTo((b.name ?? "").toLowerCase()));
+        } else {
+          print("API error: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("Error fetching from legacy API: $e");
+        // We might want to fallback to Firestore here too if admins are moved there.
       }
     } catch (e) {
       print("Error fetching members => $e");
@@ -147,6 +152,10 @@ class UserProvider extends ChangeNotifier {
           .where(
               (user) => user.role != null && user.role!.toUpperCase() == "ADS")
           .toList();
+      admin = allUsers
+          .where((user) =>
+              user.role != null && user.role!.toUpperCase() == "ADMIN")
+          .toList();
 
       // Helper to sort
       void sortList(List<UserModel> list) {
@@ -171,16 +180,20 @@ class UserProvider extends ChangeNotifier {
 
   Future<UserModel?> loadAdmin(String userID) async {
     try {
-      final url = Uri.parse(ApiEndpoints.getUsersById(userID));
-      final response = await http.get(url);
+      try {
+        final url = Uri.parse(ApiEndpoints.getUsersById(userID));
+        final response = await http.get(url);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print(data);
-        final user = UserModel.fromJson(data);
-        return user;
-      } else {
-        print("API error: ${response.statusCode}");
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          print(data);
+          final user = UserModel.fromJson(data);
+          return user;
+        } else {
+          print("API error: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("Error fetching from legacy API: $e");
       }
     } catch (e) {
       print("Error fetching admin => $e");

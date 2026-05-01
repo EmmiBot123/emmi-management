@@ -9,6 +9,7 @@ import '../../../Model/productDetails/SerialEntry.dart';
 import '../../../Model/productDetails/SerialProduct.dart';
 
 import '../../Providers/Marketing/SchoolVisitProvider.dart';
+import 'sections/ImeiUploadPage.dart';
 import 'sections/InstallationChecklistPage.dart';
 import 'sections/assembly_stock_update_page.dart';
 import 'sections/photos_page.dart';
@@ -157,7 +158,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
         return SerialProduct(
           productName: p.name,
           versionCode: "E1",
-          quantity: '',
+          quantity: p.quantity.toString(),
           serials: (productSerialMap[key] ?? [])
               .map((s) => SerialEntry(serial: s))
               .toList(),
@@ -285,6 +286,16 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
                   );
                 },
               ),
+              sectionGridBox("IMEI Upload", Icons.qr_code_scanner, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ImeiUploadPage(
+                      visit: widget.visit,
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
 

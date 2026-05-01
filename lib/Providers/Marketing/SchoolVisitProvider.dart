@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../Model/Marketing/ParsedAddress.dart';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/productDetails/ProductOption.dart';
@@ -186,8 +187,11 @@ class SchoolVisitProvider extends ChangeNotifier {
       notifyListeners();
       final visits = await repository.getPaymentVisits();
 
-      paymentVisits =
-          visits.where((v) => v.payment.advanceTransferred == true).toList();
+      paymentVisits = visits
+          .where((v) =>
+              v.visitDetails.status.toUpperCase() == "CLOSED_WON" ||
+              v.payment.advanceTransferred == true)
+          .toList();
     } catch (e) {
       errorMessage = e.toString();
     }
@@ -235,57 +239,80 @@ class SchoolVisitProvider extends ChangeNotifier {
   }
 
   Future<bool> saveSerialAssignment(SerialAssignment model) async {
+    bool firestoreOk = false;
+    bool apiOk = false;
+
+    // 1. Save to Firestore (Reliable Backup)
+    try {
+      final docId = model.id ??
+          FirebaseFirestore.instance.collection('serial_assignments').doc().id;
+      model.id = docId;
+
+      await FirebaseFirestore.instance
+          .collection('serial_assignments')
+          .doc(docId)
+          .set(model.toJson(), SetOptions(merge: true));
+      firestoreOk = true;
+      print("✅ SerialAssignment Saved to Firestore");
+    } catch (e) {
+      print("❌ Firestore Serial Save Failed: $e");
+    }
+
+    // 2. Save to Legacy API
     try {
       final url = "${ApiEndpoints.baseUrl}/api/serials/save";
       final uri = Uri.parse(url);
-      print("idd:${model.id}");
       final response = await http.post(
         uri,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode(model.toJson()),
       );
-
-      print(response.body);
-
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (_) {
-      return false;
+      apiOk = response.statusCode == 200 || response.statusCode == 201;
+      if (apiOk) print("✅ SerialAssignment Saved to API");
+    } catch (e) {
+      print("❌ API Serial Save Failed: $e");
     }
+
+    return firestoreOk || apiOk;
   }
 
   Future<SerialAssignment?> getSerialAssignmentByVisit(String visitId) async {
+    // 1. Try Firestore First (Handles CORS/Connection issues)
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('serial_assignments')
+          .where('visitId', isEqualTo: visitId)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data();
+        data['id'] = snapshot.docs.first.id;
+        print("✅ Loaded SerialAssignment from Firestore");
+        return SerialAssignment.fromJson(data);
+      }
+    } catch (e) {
+      print("❌ Firestore Serial Fetch Failed: $e");
+    }
+
+    // 2. Fallback to API
     try {
       final url = "${ApiEndpoints.baseUrl}/api/serials/visit/$visitId";
       final uri = Uri.parse(url);
-
       final response = await http.get(uri);
-      debugPrint(response.body);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-
         if (json is List && json.isNotEmpty) {
           final map = json.first as Map<String, dynamic>;
-
-          try {
-            return SerialAssignment.fromJson(map);
-          } catch (e, s) {
-            print("❌ ERROR PARSING SerialAssignment.fromJson");
-            print(e);
-            print(s);
-          }
+          print("✅ Loaded SerialAssignment from API");
+          return SerialAssignment.fromJson(map);
         }
       }
-
-      return null;
-    } catch (e, s) {
-      print("❌ PROVIDER FAILED");
-      print(e);
-      print(s);
-      return null;
+    } catch (e) {
+      print("❌ API Serial Fetch Failed: $e");
     }
+
+    return null;
   }
 
   Future<List<ProductOption>> fetchAvailableProducts() async {

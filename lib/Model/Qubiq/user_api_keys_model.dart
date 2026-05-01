@@ -5,6 +5,11 @@ class UserApiKeys {
   String? emmiTranslate;
   String? emmiLite;
   String? blockly;
+  String? pyvibe;
+  String? ppt;
+  String? excel;
+  String? word;
+  String? bucketName;
 
   UserApiKeys({
     this.neuralChat,
@@ -13,6 +18,11 @@ class UserApiKeys {
     this.emmiTranslate,
     this.emmiLite,
     this.blockly,
+    this.pyvibe,
+    this.ppt,
+    this.excel,
+    this.word,
+    this.bucketName,
   });
 
   factory UserApiKeys.fromJson(Map<String, dynamic> json) {
@@ -23,6 +33,11 @@ class UserApiKeys {
       emmiTranslate: json['emmiTranslate'],
       emmiLite: json['emmiLite'],
       blockly: json['blockly'],
+      pyvibe: json['pyvibe'],
+      ppt: json['ppt'],
+      excel: json['excel'],
+      word: json['word'],
+      bucketName: json['bucketName'],
     );
   }
 
@@ -34,6 +49,11 @@ class UserApiKeys {
       'emmiTranslate': emmiTranslate,
       'emmiLite': emmiLite,
       'blockly': blockly,
+      'pyvibe': pyvibe,
+      'ppt': ppt,
+      'excel': excel,
+      'word': word,
+      'bucketName': bucketName,
     };
   }
 
@@ -43,10 +63,15 @@ class UserApiKeys {
       'chat': neuralChat,
       'helpbot': helpBot,
       'image': imageGeneration,
-      'audio': null, // Currently null as per user requirement/example
+      'audio': null, 
       'translate': emmiTranslate,
       'emmiLite': emmiLite,
       'blockly': blockly,
+      'pyvibe': pyvibe,
+      'ppt': ppt,
+      'excel': excel,
+      'word': word,
+      'bucketName': bucketName,
     };
   }
 }

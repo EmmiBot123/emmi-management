@@ -20,6 +20,11 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
   final _translateCtrl = TextEditingController();
   final _emmiLiteCtrl = TextEditingController();
   final _blocklyCtrl = TextEditingController();
+  final _pyvibeCtrl = TextEditingController();
+  final _pptCtrl = TextEditingController();
+  final _excelCtrl = TextEditingController();
+  final _wordCtrl = TextEditingController();
+  final _bucketNameCtrl = TextEditingController();
   bool _isLoadingKeys = true;
 
   @override
@@ -41,6 +46,11 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
       _translateCtrl.text = keys.emmiTranslate ?? "";
       _emmiLiteCtrl.text = keys.emmiLite ?? "";
       _blocklyCtrl.text = keys.blockly ?? "";
+      _pyvibeCtrl.text = keys.pyvibe ?? "";
+      _pptCtrl.text = keys.ppt ?? "";
+      _excelCtrl.text = keys.excel ?? "";
+      _wordCtrl.text = keys.word ?? "";
+      _bucketNameCtrl.text = keys.bucketName ?? "";
     }
 
     if (mounted) {
@@ -70,6 +80,11 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
                       _textField("Emmi Translate Key", _translateCtrl),
                       _textField("Emmi Lite Key", _emmiLiteCtrl),
                       _textField("Blockly Key", _blocklyCtrl),
+                      _textField("PyVibe Key", _pyvibeCtrl),
+                      _textField("PowerPoint API Key", _pptCtrl),
+                      _textField("Excel API Key", _excelCtrl),
+                      _textField("Word API Key", _wordCtrl),
+                      _textField("Cloud Bucket Name", _bucketNameCtrl),
                       if (provider.isLoading)
                         const Padding(
                           padding: EdgeInsets.all(16.0),
@@ -119,6 +134,11 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
       emmiTranslate: _translateCtrl.text,
       emmiLite: _emmiLiteCtrl.text,
       blockly: _blocklyCtrl.text,
+      pyvibe: _pyvibeCtrl.text,
+      ppt: _pptCtrl.text,
+      excel: _excelCtrl.text,
+      word: _wordCtrl.text,
+      bucketName: _bucketNameCtrl.text,
     );
 
     final success = await context.read<QubiqProvider>().updateSchoolApiKeys(

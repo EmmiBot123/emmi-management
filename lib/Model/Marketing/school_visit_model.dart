@@ -22,6 +22,8 @@ class SchoolVisit {
   String? assignedNote;
   String? adminId;
   String? adminName;
+  String? schoolCode;
+  String? setupToken;
   SchoolProfile schoolProfile;
   List<ContactPerson> contactPersons;
 
@@ -52,6 +54,8 @@ class SchoolVisit {
     this.assignedUserName,
     this.adminId,
     this.adminName,
+    this.schoolCode,
+    this.setupToken,
     this.assignedNote,
     required this.schoolProfile,
     required this.contactPersons,
@@ -73,6 +77,7 @@ class SchoolVisit {
   SchoolVisit copyWith({
     SchoolProfile? schoolProfile,
     VisitDetails? visitDetails,
+    String? schoolCode,
   }) {
     return SchoolVisit(
       id: id,
@@ -81,6 +86,8 @@ class SchoolVisit {
       assignedUserId: assignedUserId,
       assignedUserName: assignedUserName,
       assignedNote: assignedNote,
+      schoolCode: schoolCode ?? this.schoolCode,
+      setupToken: setupToken,
       schoolProfile: schoolProfile ?? this.schoolProfile,
       contactPersons: contactPersons,
       proposalChecklist: proposalChecklist,
@@ -104,6 +111,8 @@ class SchoolVisit {
       createdByUserName: json["createdByUserName"],
       adminId: json["adminId"],
       adminName: json["adminName"],
+      schoolCode: json["schoolCode"],
+      setupToken: json["setupToken"],
       assignedUserId: json["assignedUserId"],
       assignedUserName: json["assignedUserName"],
       assignedNote: json["assignedNote"],
@@ -154,6 +163,8 @@ class SchoolVisit {
       "assignedUserName": assignedUserName,
       "adminId": adminId,
       "adminName": adminName,
+      "schoolCode": schoolCode,
+      "setupToken": setupToken,
       "assignedNote": assignedNote,
       "schoolProfile": schoolProfile.toJson(),
       "contactPersons": contactPersons.map((e) => e.toJson()).toList(),

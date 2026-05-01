@@ -214,6 +214,7 @@ class AuthService {
     required String password,
     required String name,
     required String phone,
+    required String schoolId,
     Map<String, String>? apiKeys,
   }) async {
     try {
@@ -241,6 +242,7 @@ class AuthService {
         'name': name,
         'phone': phone,
         'role': 'ADMIN', // specific role for school admins
+        'schoolId': schoolId, // 4-digit ID
         'createdAt': FieldValue.serverTimestamp(),
         'apiKeys': apiKeys ?? {},
       };

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'Providers/AuthProvider.dart';
 import 'Providers/Marketing/SchoolVisitProvider.dart';
 import 'Providers/User_provider.dart';
+import 'Providers/CourseProvider.dart';
 import 'Screens/Login/LoginScreen.dart';
 import 'Screens/RolesPage.dart';
 
@@ -31,6 +32,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => BillProvider()),
         ChangeNotifierProvider(create: (_) => QubiqProvider()),
         ChangeNotifierProvider(create: (_) => AdsProvider()),
+        ChangeNotifierProvider(create: (_) => CourseProvider()),
       ],
       child: MyApp(),
     ),

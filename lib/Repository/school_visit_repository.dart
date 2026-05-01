@@ -56,11 +56,45 @@ class SchoolVisitRepository {
     return List.from(response).map((e) => SchoolVisit.fromJson(e)).toList();
   }
 
-  /// GET All by UserId using AppConfig URL
+  /// GET All by UserId using AppConfig URL (Updated to check both sources)
   Future<List<SchoolVisit>> getPaymentVisits() async {
-    final url = ApiEndpoints.createVisit;
-    final response = await api.get(url);
-    return List.from(response).map((e) => SchoolVisit.fromJson(e)).toList();
+    List<SchoolVisit> firestoreVisits = [];
+    List<SchoolVisit> apiVisits = [];
+
+    // 1. Fetch from Firestore
+    try {
+      final snapshot = await _firestore.collection('school_visits').get();
+      firestoreVisits = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return SchoolVisit.fromJson(data);
+      }).toList();
+    } catch (e) {
+      print("Firestore payment fetch failed: $e");
+    }
+
+    // 2. Fetch from Legacy API
+    try {
+      final url = ApiEndpoints.createVisit;
+      final response = await api.get(url);
+      if (response != null) {
+        apiVisits =
+            List.from(response).map((e) => SchoolVisit.fromJson(e)).toList();
+      }
+    } catch (e) {
+      print("Legacy API payment fetch failed: $e");
+    }
+
+    // 3. Merge lists by ID
+    final Map<String, SchoolVisit> mergedMap = {};
+    for (var v in apiVisits) {
+      if (v.id != null) mergedMap[v.id!] = v;
+    }
+    for (var v in firestoreVisits) {
+      if (v.id != null) mergedMap[v.id!] = v;
+    }
+
+    return mergedMap.values.toList();
   }
 
   /// CREATE Visit

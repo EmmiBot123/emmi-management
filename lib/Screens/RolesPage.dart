@@ -43,6 +43,7 @@ class _RolesPageState extends State<RolesPage> {
     "Admin",
     "Tele Marketing",
     "Marketing",
+    "Qubiq",
   };
 
   IconData getRoleIcon(String role) {
@@ -161,7 +162,7 @@ class _RolesPageState extends State<RolesPage> {
     }
 
     if (userRole == "QUBIQ") {
-      return ["Qubiq"];
+      return ["Qubiq", "Marketing", "Tele Marketing"];
     }
 
     if (userRole == "ADS") {
@@ -252,19 +253,23 @@ class _RolesPageState extends State<RolesPage> {
 
   /// Sidebar for large screens
   Widget buildSideBar(List<String> visibleRoles) {
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      labelType: NavigationRailLabelType.all,
-      onDestinationSelected: (i) => setState(() => selectedIndex = i),
-      destinations: visibleRoles
-          .map(
-            (r) => NavigationRailDestination(
-              icon: Icon(getRoleIcon(r)),
-              selectedIcon: Icon(getRoleIcon(r)),
-              label: Text(r),
-            ),
-          )
-          .toList(),
+    return SingleChildScrollView(
+      child: IntrinsicHeight(
+        child: NavigationRail(
+          selectedIndex: selectedIndex,
+          labelType: NavigationRailLabelType.all,
+          onDestinationSelected: (i) => setState(() => selectedIndex = i),
+          destinations: visibleRoles
+              .map(
+                (r) => NavigationRailDestination(
+                  icon: Icon(getRoleIcon(r)),
+                  selectedIcon: Icon(getRoleIcon(r)),
+                  label: Text(r),
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 }

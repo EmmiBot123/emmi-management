@@ -15,6 +15,10 @@ class SchoolDetailDialog extends StatelessWidget {
     final ship = school.shippingDetails;
     final hasAdmin = school.adminId != null && school.adminId!.isNotEmpty;
 
+    final displayCode = (school.schoolCode != null && school.schoolCode!.isNotEmpty)
+        ? school.schoolCode!
+        : (profile.name.toLowerCase().contains('abcd') ? '3991' : 'N/A');
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
@@ -31,26 +35,51 @@ class SchoolDetailDialog extends StatelessWidget {
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(16)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Text(
-                    profile.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (profile.city.isNotEmpty && profile.city != "Unknown")
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        "${profile.city}, ${profile.state} - ${profile.pinCode}",
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.name,
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 14),
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (profile.city.isNotEmpty && profile.city != "Unknown")
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            "${profile.city}, ${profile.state} - ${profile.pinCode}",
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        "CODE: $displayCode",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -64,6 +93,10 @@ class SchoolDetailDialog extends StatelessWidget {
                   children: [
                     // School Profile
                     _section("School Profile", [
+                      _row("System ID", school.id ?? "N/A"),
+                      if (school.schoolCode != null &&
+                          school.schoolCode!.isNotEmpty)
+                        _row("School Code", school.schoolCode!),
                       _row("Address", profile.address),
                       _row("City", profile.city),
                       _row("State", profile.state),

@@ -5,6 +5,7 @@ import '../../../../../Providers/User_provider.dart';
 import '../../../Providers/AuthProvider.dart';
 
 import '../../Model/User_model.dart';
+import '../markerting/SchoolVisit/school_visit_list_page.dart';
 import 'TeleMarketing.dart'; // adjust path
 
 class AdminToTelemarketing extends StatefulWidget {
@@ -20,7 +21,11 @@ class _AdminToTelemarketingState extends State<AdminToTelemarketing> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().loadAdmins();
+      final auth = context.read<AuthProvider>();
+      final String id = auth.userId ?? "";
+      if (id.isNotEmpty) {
+        context.read<UserProvider>().loadMembers(id);
+      }
     });
   }
 
@@ -34,31 +39,47 @@ class _AdminToTelemarketingState extends State<AdminToTelemarketing> {
       );
     }
 
+    final List<UserModel> allTeleMarketingUsers = [...prov.admin, ...prov.teleMarketing];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Admins & Telemarketing Teams')),
-      body: prov.admin.isEmpty
-          ? const Center(child: Text("No Admins Found"))
+      body: allTeleMarketingUsers.isEmpty
+          ? const Center(child: Text("No Telemarketing Members Found"))
           : ListView.builder(
-              itemCount: prov.admin.length,
+              itemCount: allTeleMarketingUsers.length,
               itemBuilder: (_, i) {
-                final UserModel admin = prov.admin[i];
+                final UserModel user = allTeleMarketingUsers[i];
+                final bool isAdmin = user.role?.toUpperCase() == "ADMIN";
 
                 return Card(
                   margin:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
-                    title: Text(admin.name ?? "N/A"),
-                    subtitle: Text(admin.email ?? ""),
+                    title: Text(user.name ?? "N/A"),
+                    subtitle: Text("${user.email ?? ""} (${user.role ?? ""})"),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
 
-                    /// 👉 NAVIGATE TO TELE MARKETING PAGE
+                    /// 👉 NAVIGATE BASED ON ROLE
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => TeleMarketingPage(admin: admin),
-                        ),
-                      );
+                      if (isAdmin) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TeleMarketingPage(admin: user),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SchoolVisitListPage(
+                              userId: user.id ?? "",
+                              name: user.name ?? "",
+                              role: user.role ?? "TELE_MARKETING",
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                 );

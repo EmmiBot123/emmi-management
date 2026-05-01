@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../Providers/User_provider.dart';
+import '../../Providers/AuthProvider.dart';
 import '../../Model/User_model.dart';
+import 'SchoolVisit/school_visit_list_page.dart';
 import 'marketing_page.dart'; // adjust path
 
 class AdminToMarketing extends StatefulWidget {
@@ -18,7 +20,11 @@ class _AdminToMarketingState extends State<AdminToMarketing> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().loadAdmins();
+      final auth = context.read<AuthProvider>();
+      final String id = auth.userId ?? "";
+      if (id.isNotEmpty) {
+        context.read<UserProvider>().loadMembers(id);
+      }
     });
   }
 
@@ -32,31 +38,47 @@ class _AdminToMarketingState extends State<AdminToMarketing> {
       );
     }
 
+    final List<UserModel> allMarketingUsers = [...prov.admin, ...prov.marketing];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Admins & Marketing Teams')),
-      body: prov.admin.isEmpty
-          ? const Center(child: Text("No Admins Found"))
+      body: allMarketingUsers.isEmpty
+          ? const Center(child: Text("No Marketing Members Found"))
           : ListView.builder(
-              itemCount: prov.admin.length,
+              itemCount: allMarketingUsers.length,
               itemBuilder: (_, i) {
-                final UserModel admin = prov.admin[i];
+                final UserModel user = allMarketingUsers[i];
+                final bool isAdmin = user.role?.toUpperCase() == "ADMIN";
 
                 return Card(
                   margin:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: ListTile(
-                    title: Text(admin.name ?? "N/A"),
-                    subtitle: Text(admin.email ?? ""),
+                    title: Text(user.name ?? "N/A"),
+                    subtitle: Text("${user.email ?? ""} (${user.role ?? ""})"),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
 
-                    /// 👉 NAVIGATE TO TELE MARKETING PAGE
+                    /// 👉 NAVIGATE BASED ON ROLE
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MarketingPage(admin: admin),
-                        ),
-                      );
+                      if (isAdmin) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MarketingPage(admin: user),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SchoolVisitListPage(
+                              userId: user.id ?? "",
+                              name: user.name ?? "",
+                              role: user.role ?? "MARKETING",
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                 );
