@@ -22,14 +22,14 @@ class _C {
 /// All available role options for user assignment
 const _roleOptions = [
   {"key": "ADMIN", "label": "Admin", "icon": Icons.admin_panel_settings},
-  {"key": "MARKETING", "label": "Marketing", "icon": Icons.campaign_rounded},
-  {"key": "TELE_MARKETING", "label": "Tele Marketing", "icon": Icons.phone_in_talk_rounded},
-  {"key": "ACCOUNTS", "label": "Accounts", "icon": Icons.account_balance_wallet_rounded},
-  {"key": "ASSEMBLY_TEAM", "label": "Assembly", "icon": Icons.build_rounded},
-  {"key": "INSTALLATION_TEAM", "label": "Installation", "icon": Icons.engineering_rounded},
-  {"key": "QUBIQ", "label": "Qubiq", "icon": Icons.api_rounded},
-  {"key": "ADS", "label": "Ads", "icon": Icons.video_library_rounded},
-  {"key": "TESTING", "label": "Testing", "icon": Icons.bug_report_rounded},
+  {"key": "MARKETING", "label": "Marketing", "icon": Icons.campaign},
+  {"key": "TELE_MARKETING", "label": "Tele Marketing", "icon": Icons.phone_in_talk},
+  {"key": "ACCOUNTS", "label": "Accounts", "icon": Icons.account_balance_wallet},
+  {"key": "ASSEMBLY_TEAM", "label": "Assembly", "icon": Icons.build},
+  {"key": "INSTALLATION_TEAM", "label": "Installation", "icon": Icons.engineering},
+  {"key": "QUBIQ", "label": "Qubiq", "icon": Icons.api},
+  {"key": "ADS", "label": "Ads", "icon": Icons.video_library},
+  {"key": "TESTING", "label": "Testing", "icon": Icons.bug_report},
 ];
 
 class UserManagementPage extends StatefulWidget {
@@ -253,7 +253,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                             border: Border.all(
                                 color: Colors.white.withOpacity(0.1)),
                           ),
-                          child: const Icon(Icons.people_alt_rounded,
+                          child: const Icon(Icons.people_alt,
                               color: Colors.white, size: 22),
                         ),
                         const SizedBox(width: 16),
@@ -300,7 +300,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.add_rounded,
+                                Icon(Icons.add,
                                     size: 18, color: Color(0xFF1B1464)),
                                 SizedBox(width: 6),
                                 Text(
@@ -331,7 +331,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.search_rounded,
+                          Icon(Icons.search,
                               color: Colors.white.withOpacity(0.4), size: 20),
                           const SizedBox(width: 10),
                           Expanded(
@@ -387,7 +387,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.person_search_rounded,
+                            Icon(Icons.person_search,
                                 size: 48, color: _C.textMuted),
                             const SizedBox(height: 12),
                             const Text("No users found",
@@ -536,7 +536,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
-                    const Icon(Icons.edit_rounded, size: 15, color: _C.accent),
+                    const Icon(Icons.edit, size: 15, color: _C.accent),
               ),
             ),
             const SizedBox(width: 6),
@@ -552,7 +552,7 @@ class _UserManagementPageState extends State<UserManagementPage>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child:
-                    const Icon(Icons.delete_outline_rounded, size: 16, color: _C.danger),
+                    const Icon(Icons.delete_outline, size: 16, color: _C.danger),
               ),
             ),
           ],
@@ -722,7 +722,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
             _buildField(
               controller: _nameCtrl,
               label: "Full Name",
-              icon: Icons.person_outline_rounded,
+              icon: Icons.person_outline,
             ),
             const SizedBox(height: 14),
 
@@ -1122,7 +1122,7 @@ class _EditRoleSheetState extends State<_EditRoleSheet> {
                         ),
                         if (isSelected) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.check_circle_rounded,
+                          const Icon(Icons.check_circle,
                               size: 14, color: _C.accent),
                         ],
                       ],

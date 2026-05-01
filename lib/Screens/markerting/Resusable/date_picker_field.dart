@@ -18,7 +18,7 @@ class DatePickerField extends StatelessWidget {
     this.allowPastDates = true,
     this.showTime = false, // <--- added
     this.showDate = true, // <--- added
-    this.icon = Icons.calendar_month_rounded,
+    this.icon = Icons.calendar_month,
   });
 
   Future<void> _pickDateTime(BuildContext context) async {

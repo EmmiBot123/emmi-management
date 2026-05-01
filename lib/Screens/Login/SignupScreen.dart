@@ -184,7 +184,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                           const SizedBox(height: 16),
                           _field(
                             hint: "Confirm Password",
-                            icon: Icons.lock_outline_rounded,
+                            icon: Icons.lock_outline,
                             controller: confirmPasswordController,
                             isObscure: true,
                           ),

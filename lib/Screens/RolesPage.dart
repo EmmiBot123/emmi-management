@@ -49,15 +49,15 @@ class _RolesPageState extends State<RolesPage> {
   IconData getRoleIcon(String role) {
     switch (role) {
       case "Dashboard":
-        return Icons.dashboard_rounded;
+        return Icons.dashboard;
       case "Users":
-        return Icons.people_alt_rounded;
+        return Icons.people_alt;
       case "Sales":
-        return Icons.storefront_rounded;
+        return Icons.storefront;
       case "Accounts":
         return Icons.account_balance_wallet;
       case "Operations":
-        return Icons.precision_manufacturing_rounded;
+        return Icons.precision_manufacturing;
       case "Qubiq":
         return Icons.api;
       case "Testing":
@@ -284,7 +284,7 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
             ],
           ),
           child: Icon(
-            Icons.menu_rounded,
+            Icons.menu,
             size: 22,
             color: widget.isDashboard
                 ? _P.textSecondary
@@ -392,7 +392,7 @@ class _NavPanel extends StatelessWidget {
                         color: _P.surfaceLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.close_rounded,
+                      child: const Icon(Icons.close,
                           color: _P.textMuted, size: 18),
                     ),
                   ),
@@ -473,7 +473,7 @@ class _NavPanel extends StatelessWidget {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.logout_rounded,
+                      Icon(Icons.logout,
                           color: Color(0xFFFF6B6B), size: 18),
                       SizedBox(width: 10),
                       Text(

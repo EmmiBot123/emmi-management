@@ -132,7 +132,7 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
                                   color: const Color(0xFF38BDF8)
                                       .withOpacity(0.3)),
                             ),
-                            child: const Icon(Icons.api_rounded,
+                            child: const Icon(Icons.api,
                                 color: Color(0xFF38BDF8), size: 22),
                           ),
                           const SizedBox(width: 16),
@@ -183,7 +183,7 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.support_agent_rounded,
+                              const Icon(Icons.support_agent,
                                   color: Color(0xFF38BDF8), size: 18),
                               const SizedBox(width: 12),
                               const Expanded(
@@ -196,7 +196,7 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
                                   ),
                                 ),
                               ),
-                              Icon(Icons.arrow_forward_ios_rounded,
+                              Icon(Icons.arrow_forward_ios,
                                   color: Colors.white.withOpacity(0.3),
                                   size: 14),
                             ],
@@ -217,9 +217,9 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
                         ),
                         child: Row(
                           children: [
-                            _buildSegment("Schools", Icons.business_rounded, 0, width),
-                            _buildSegment("Courses", Icons.school_rounded, 1, width),
-                            _buildSegment("Ads", Icons.video_library_rounded, 2, width),
+                            _buildSegment("Schools", Icons.business, 0, width),
+                            _buildSegment("Courses", Icons.school, 1, width),
+                            _buildSegment("Ads", Icons.video_library, 2, width),
                           ],
                         ),
                       ),
@@ -420,7 +420,7 @@ class _QubiqPageState extends State<QubiqPage> with SingleTickerProviderStateMix
                                                 hasAdmin
                                                     ? Icons.check_circle_outline
                                                     : isPending
-                                                        ? Icons.schedule_rounded
+                                                        ? Icons.schedule
                                                         : Icons.error_outline,
                                                 color: hasAdmin
                                                     ? Colors.green

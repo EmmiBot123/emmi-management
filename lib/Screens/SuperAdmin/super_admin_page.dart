@@ -425,7 +425,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.logout_rounded,
+                      const Icon(Icons.logout,
                           color: Colors.white70, size: 20),
                       const SizedBox(width: 8),
                       Text(
@@ -455,21 +455,21 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       _MetricData(
         "Confirmed Schools",
         _confirmedSchools,
-        Icons.school_rounded,
+        Icons.school,
         _Palette.success,
         "schools",
       ),
       _MetricData(
         "Open Tickets",
         _openTickets,
-        Icons.warning_amber_rounded,
+        Icons.warning_amber,
         _Palette.warning,
         "pending",
       ),
       _MetricData(
         "Team Members",
         _totalTeamMembers,
-        Icons.people_alt_rounded,
+        Icons.people_alt,
         _Palette.info,
         "active",
       ),
@@ -616,7 +616,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   color: _Palette.info.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.confirmation_number_rounded,
+                child: const Icon(Icons.confirmation_number,
                     size: 18, color: _Palette.info),
               ),
               const SizedBox(width: 12),
@@ -631,8 +631,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               const Spacer(),
               InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => Navigator.push(
-                  context,
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
                       builder: (_) => const SupportTicketListPage()),
                 ),
@@ -783,7 +782,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   color: _Palette.danger.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.bug_report_rounded,
+                child: const Icon(Icons.bug_report,
                     size: 18, color: _Palette.danger),
               ),
               const SizedBox(width: 12),
@@ -818,8 +817,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           const SizedBox(height: 16),
           InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => Navigator.push(
-              context,
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(
                   builder: (_) => const TestingFeedbackListPage()),
             ),
@@ -875,25 +873,25 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             _buildActionCard(
               title: "Products",
               subtitle: "Manage inventory",
-              icon: Icons.precision_manufacturing_rounded,
+              icon: Icons.precision_manufacturing,
               color: _Palette.accent,
-              onTap: () => Navigator.push(context,
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const ProductManagementPage())),
             ),
             _buildActionCard(
               title: "Feedback",
               subtitle: "$_totalFeedback reports",
-              icon: Icons.rate_review_rounded,
+              icon: Icons.rate_review,
               color: _Palette.danger,
-              onTap: () => Navigator.push(context,
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const TestingFeedbackListPage())),
             ),
             _buildActionCard(
               title: "Tickets",
               subtitle: "$_openTickets open",
-              icon: Icons.headset_mic_rounded,
+              icon: Icons.headset_mic,
               color: _Palette.info,
-              onTap: () => Navigator.push(context,
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const SupportTicketListPage())),
             ),
           ],
@@ -962,7 +960,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 ),
               ),
               Icon(
-                Icons.chevron_right_rounded,
+                Icons.chevron_right,
                 size: 18,
                 color: _Palette.textMuted,
               ),
@@ -994,7 +992,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   color: _Palette.info.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.people_alt_rounded,
+                child: const Icon(Icons.people_alt,
                     size: 18, color: _Palette.info),
               ),
               const SizedBox(width: 12),
@@ -1141,7 +1139,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 color: const Color(0xFFFF6B6B).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.delete_outline_rounded,
+              child: const Icon(Icons.delete_outline,
                   size: 16, color: Color(0xFFFF6B6B)),
             ),
           ),

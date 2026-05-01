@@ -142,7 +142,7 @@ class _OperationsPageState extends State<OperationsPage>
                               border: Border.all(
                                   color: Colors.white.withOpacity(0.1)),
                             ),
-                            child: const Icon(Icons.precision_manufacturing_rounded,
+                            child: const Icon(Icons.precision_manufacturing,
                                 color: Colors.white, size: 22),
                           ),
                           const SizedBox(width: 16),
@@ -185,13 +185,13 @@ class _OperationsPageState extends State<OperationsPage>
                           children: [
                             _buildSegment(
                               "Assembly",
-                              Icons.build_rounded,
+                              Icons.build,
                               0,
                               width,
                             ),
                             _buildSegment(
                               "Installation",
-                              Icons.engineering_rounded,
+                              Icons.engineering,
                               1,
                               width,
                             ),

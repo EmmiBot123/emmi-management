@@ -145,7 +145,7 @@ class _LoginScreenLightState extends State<LoginScreenLight> {
                           const SizedBox(height: 16),
                           _buildMinimalTextField(
                             hint: "Password",
-                            icon: Icons.lock_outline_rounded,
+                            icon: Icons.lock_outline,
                             isObscure: true,
                             controller: passwordController,
                           ),

@@ -181,7 +181,7 @@ class _SalesPageState extends State<SalesPage>
                               border: Border.all(
                                   color: Colors.white.withOpacity(0.1)),
                             ),
-                            child: const Icon(Icons.storefront_rounded,
+                            child: const Icon(Icons.storefront,
                                 color: Colors.white, size: 22),
                           ),
                           const SizedBox(width: 16),
@@ -215,21 +215,21 @@ class _SalesPageState extends State<SalesPage>
                       Row(
                         children: [
                           _StatChip(
-                            icon: Icons.campaign_rounded,
+                            icon: Icons.campaign,
                             label: "Marketing",
                             count: marketingCount,
                             color: const Color(0xFFFFBB55),
                           ),
                           const SizedBox(width: 12),
                           _StatChip(
-                            icon: Icons.phone_in_talk_rounded,
+                            icon: Icons.phone_in_talk,
                             label: "Tele Marketing",
                             count: teleCount,
                             color: const Color(0xFF00D4AA),
                           ),
                           const SizedBox(width: 12),
                           _StatChip(
-                            icon: Icons.people_rounded,
+                            icon: Icons.people,
                             label: "Total",
                             count: marketingCount + teleCount,
                             color: Colors.white,
@@ -252,13 +252,13 @@ class _SalesPageState extends State<SalesPage>
                           children: [
                             _buildSegment(
                               "Marketing",
-                              Icons.campaign_rounded,
+                              Icons.campaign,
                               0,
                               width,
                             ),
                             _buildSegment(
                               "Tele Marketing",
-                              Icons.phone_in_talk_rounded,
+                              Icons.phone_in_talk,
                               1,
                               width,
                             ),
