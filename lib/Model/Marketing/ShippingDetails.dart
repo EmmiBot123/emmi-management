@@ -12,6 +12,7 @@ class ShippingDetails {
   final bool passedToInstallation; // For passing to another role
   final bool arrived; // Whether shipment arrived
   final String arrivedDate; // When it arrived
+  final String status; // Custom status: "Yet to be picked up", "In Transit", etc.
 
   ShippingDetails({
     this.address = "",
@@ -27,6 +28,7 @@ class ShippingDetails {
     this.passedToInstallation = false,
     this.arrived = false,
     this.arrivedDate = "",
+    this.status = "",
   });
 
   factory ShippingDetails.fromJson(Map<String, dynamic>? json) {
@@ -46,6 +48,7 @@ class ShippingDetails {
       passedToInstallation: json["passedToInstallation"] ?? false,
       arrived: json["arrived"] ?? false,
       arrivedDate: json["arrivedDate"] ?? "",
+      status: json["status"] ?? "",
     );
   }
 
@@ -63,6 +66,7 @@ class ShippingDetails {
         "passedToInstallation": passedToInstallation,
         "arrived": arrived,
         "arrivedDate": arrivedDate,
+        "status": status,
       };
 
   ShippingDetails copyWith({
@@ -77,6 +81,7 @@ class ShippingDetails {
     bool? passedToInstallation,
     bool? arrived,
     String? arrivedDate,
+    String? status,
   }) {
     return ShippingDetails(
       address: address ?? this.address,
@@ -90,6 +95,7 @@ class ShippingDetails {
       passedToInstallation: passedToInstallation ?? this.passedToInstallation,
       arrived: arrived ?? this.arrived,
       arrivedDate: arrivedDate ?? this.arrivedDate,
+      status: status ?? this.status,
     );
   }
 }

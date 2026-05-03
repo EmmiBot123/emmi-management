@@ -7,6 +7,8 @@ import '../../Providers/AuthProvider.dart';
 import '../../Repository/school_visit_repository.dart';
 import '../../Repository/Support/support_repository.dart';
 import '../../Repository/Testing/testing_repository.dart';
+import 'package:qubiq_os/Repository/Statistics/statistics_repository.dart';
+import 'package:qubiq_os/Repository/school_repository.dart';
 import '../Testing/testing_feedback_list_page.dart';
 import '../Support/support_ticket_list_page.dart';
 import 'ProductManagementPage/ProductManagementPage.dart';
@@ -47,6 +49,18 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   int _totalTeamMembers = 0;
   List<UserModel> _teamMembers = [];
 
+  // --- Platform Stats ---
+  int _totalAssignments = 0;
+  int _totalAccounts = 0;
+  int _totalProjects = 0;
+  int _totalSubmissions = 0;
+  
+  // --- School Wise Stats ---
+  String? _selectedSchoolId;
+  Map<String, dynamic> _schoolStats = {};
+  bool _isSchoolLoading = false;
+  List<Map<String, dynamic>> _allSchools = [];
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _pulseController;
@@ -84,6 +98,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         _fetchTicketMetrics(),
         _fetchFeedbackMetrics(),
         _fetchTeamMetrics(),
+        _fetchPlatformStats(),
+        _fetchSchools(),
       ]);
     } catch (e) {
       debugPrint("Dashboard metrics error: $e");
@@ -141,6 +157,48 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       _totalTeamMembers = _teamMembers.length;
     } catch (e) {
       debugPrint("Team metrics error: $e");
+    }
+  }
+
+  Future<void> _fetchPlatformStats() async {
+    try {
+      final statsRepo = StatisticsRepository();
+      final stats = await statsRepo.getGlobalStats();
+      setState(() {
+        _totalAccounts = stats['users'] ?? 0;
+        _totalAssignments = stats['assignments'] ?? 0;
+        _totalProjects = stats['projects'] ?? 0;
+        _totalSubmissions = stats['submissions'] ?? 0;
+      });
+    } catch (e) {
+      debugPrint("Platform stats error: $e");
+    }
+  }
+
+  Future<void> _fetchSchools() async {
+    try {
+      final repo = SchoolRepository();
+      final schools = await repo.getAllSchools();
+      setState(() {
+        _allSchools = schools;
+      });
+    } catch (e) {
+      debugPrint("Schools fetch error: $e");
+    }
+  }
+
+  Future<void> _loadSchoolStats(String schoolId) async {
+    setState(() {
+      _isSchoolLoading = true;
+      _selectedSchoolId = schoolId;
+    });
+    try {
+      final statsRepo = StatisticsRepository();
+      _schoolStats = await statsRepo.getSchoolStats(schoolId);
+    } catch (e) {
+      debugPrint("School stats error: $e");
+    } finally {
+      if (mounted) setState(() => _isSchoolLoading = false);
     }
   }
 
@@ -232,7 +290,11 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                     const SizedBox(height: 28),
                     _buildMetricStrip(isWide, isMedium),
                     const SizedBox(height: 24),
+                    _buildPlatformStatsSection(isWide),
+                    const SizedBox(height: 24),
                     _buildMiddleRow(isWide),
+                    const SizedBox(height: 24),
+                    _buildSchoolStatsSection(),
                     const SizedBox(height: 24),
                     _buildQuickActions(isWide),
                     const SizedBox(height: 24),
@@ -1184,6 +1246,139 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
             : '')
         .join(' ');
+  }
+
+  // ═══════════════════ PLATFORM STATS ═══════════════════
+  Widget _buildPlatformStatsSection(bool isWide) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Global Platform Statistics",
+          style: TextStyle(
+            color: _Palette.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: isWide ? 4 : 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.8,
+          children: [
+            _buildStatCard("Total Accounts", _totalAccounts, Icons.person, Colors.blue),
+            _buildStatCard("Assignments", _totalAssignments, Icons.assignment, Colors.orange),
+            _buildStatCard("Projects", _totalProjects, Icons.code, Colors.purple),
+            _buildStatCard("Submissions", _totalSubmissions, Icons.upload_file, Colors.green),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, int value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Palette.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(color: _Palette.textSecondary, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value.toString(),
+            style: const TextStyle(color: _Palette.textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════ SCHOOL STATS ═══════════════════
+  Widget _buildSchoolStatsSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _Palette.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _Palette.surfaceLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "School-wise Performance",
+            style: TextStyle(color: _Palette.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            dropdownColor: _Palette.surface,
+            style: const TextStyle(color: _Palette.textPrimary),
+            decoration: InputDecoration(
+              labelText: "Select School",
+              labelStyle: const TextStyle(color: _Palette.textSecondary),
+              filled: true,
+              fillColor: _Palette.bg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            items: _allSchools.map((s) {
+              return DropdownMenuItem<String>(
+                value: s['schoolId'],
+                child: Text(s['name'] ?? s['schoolId']),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) _loadSchoolStats(val);
+            },
+            value: _selectedSchoolId,
+          ),
+          if (_isSchoolLoading)
+            const Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_selectedSchoolId != null) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _schoolStatItem("Accounts", _schoolStats['users'] ?? 0),
+                _schoolStatItem("Assignments", _schoolStats['assignments'] ?? 0),
+                _schoolStatItem("Projects", _schoolStats['projects'] ?? 0),
+                _schoolStatItem("Submissions", _schoolStats['submissions'] ?? 0),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _schoolStatItem(String label, int value) {
+    return Column(
+      children: [
+        Text(
+          value.toString(),
+          style: const TextStyle(color: _Palette.accentAlt, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        Text(label, style: const TextStyle(color: _Palette.textMuted, fontSize: 11)),
+      ],
+    );
   }
 }
 

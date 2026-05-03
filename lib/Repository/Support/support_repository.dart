@@ -53,7 +53,7 @@ class SupportRepository {
   Future<List<SupportTicket>> getUserTickets(String email) async {
     try {
       final response = await http.get(
-        Uri.parse("https://edu-ai-backend-vl7s.onrender.com/support/tickets/user/$email"),
+        Uri.parse("https://edu-ai-backend-main.onrender.com/support/tickets/user/$email"),
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
@@ -91,11 +91,92 @@ class SupportRepository {
     }
   }
 
+  /// ADD REPLY to Ticket
+  Future<bool> addTicketReply(String ticketId, String reply) async {
+    try {
+      final response = await http.patch(
+        Uri.parse("$baseUrl/$ticketId"),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode({
+          'reply': reply,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error adding ticket reply: $e");
+      return false;
+    }
+  }
+
+  /// UPDATE Ticket Hardware Details via API
+  Future<bool> updateTicketHardwareDetails(String ticketId, bool isHardware, String? trackingLink, {String? manualTrackingStatus}) async {
+    try {
+      final Map<String, dynamic> body = {
+        'isHardwareComplaint': isHardware,
+        'trackingLink': trackingLink,
+      };
+      if (manualTrackingStatus != null) {
+        body['manualTrackingStatus'] = manualTrackingStatus;
+      }
+      
+      final response = await http.patch(
+        Uri.parse("$baseUrl/$ticketId"),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode(body),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error updating ticket hardware details via API: $e");
+      return false;
+    }
+  }
+
   /// Stream of tickets for real-time updates (Polled via API)
   Stream<List<SupportTicket>> getTicketsStream() async* {
     while (true) {
       yield await getAllTickets();
       await Future.delayed(const Duration(seconds: 10)); // Poll every 10 seconds
+    }
+  }
+
+  /// CREATE Ticket via API
+  Future<bool> createTicket({
+    required String email,
+    required String message,
+    String contactNumber = "",
+    bool isHardware = false,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(baseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode({
+          'email': email,
+          'message': message,
+          'contactNumber': contactNumber,
+          'chatHistory': 'Ticket raised via Admin Panel',
+          'status': 'open',
+          'isHardwareComplaint': isHardware,
+          'createdAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      print("Error creating ticket via API: $e");
+      return false;
     }
   }
 }

@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../Model/Support/support_ticket_model.dart';
 import '../../Repository/Support/support_repository.dart';
+import '../../Repository/Support/delhivery_repository.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SupportTicketListPage extends StatefulWidget {
   const SupportTicketListPage({super.key});
@@ -361,6 +363,19 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                if (ticket.contactNumber.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  Icon(Icons.phone, size: 12, color: Colors.grey.shade500),
+                  const SizedBox(width: 4),
+                  Text(
+                    ticket.contactNumber,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -468,8 +483,71 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
               const SizedBox(height: 16),
             ],
             
-            // Admin Response / Reply Input
-            if (ticket.adminResponse != null) ...[
+            // Replies Thread
+            if (ticket.replies.isNotEmpty) ...[
+              const Text(
+                "Conversation",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...ticket.replies.map((reply) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: reply.sender == 'admin' ? const Color(0xFFF3E8FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: reply.sender == 'admin' ? const Color(0xFFD8B4FE) : Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            reply.sender == 'admin' ? Icons.admin_panel_settings : Icons.person,
+                            size: 12,
+                            color: reply.sender == 'admin' ? const Color(0xFF7E22CE) : Colors.blueGrey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            reply.sender == 'admin' ? "Admin" : "User",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                              color: reply.sender == 'admin' ? const Color(0xFF7E22CE) : Colors.blueGrey,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            DateFormat('dd MMM, hh:mm a').format(reply.timestamp),
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        reply.message,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: reply.sender == 'admin' ? const Color(0xFF4C1D95) : Colors.black87,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+
+            // Legacy Admin Response (if exists)
+            if (ticket.adminResponse != null && ticket.replies.isEmpty) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -481,11 +559,11 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(Icons.reply_all, size: 14, color: Color(0xFF7E22CE)),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Icon(Icons.reply_all, size: 14, color: Color(0xFF7E22CE)),
+                        SizedBox(width: 8),
+                        Text(
                           "Admin Response",
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
@@ -510,9 +588,11 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
                 ),
               ),
               const SizedBox(height: 20),
-            ] else if (!isResolved) ...[
+            ],
+
+            if (!isResolved) ...[
               const Text(
-                "Reply to User",
+                "Send Reply",
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -525,6 +605,79 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
               ),
               const SizedBox(height: 16),
             ],
+
+            // Hardware Complaint Section
+            const Divider(height: 32),
+            Row(
+              children: [
+                const Icon(Icons.settings_input_component,
+                    size: 14, color: Color(0xFF64748B)),
+                const SizedBox(width: 8),
+                const Text(
+                  "Hardware Complaint Details",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Switch(
+                  value: ticket.isHardwareComplaint,
+                  onChanged: (val) =>
+                      _updateHardwareStatus(ticket.id!, val, ticket.trackingLink),
+                  activeColor: const Color(0xFF10B981),
+                ),
+              ],
+            ),
+            if (ticket.isHardwareComplaint) ...[
+              const SizedBox(height: 8),
+              _TrackingInput(
+                initialValue: ticket.trackingLink ?? '',
+                onSave: (val) => _updateHardwareStatus(
+                    ticket.id!, ticket.isHardwareComplaint, val, manualStatus: ticket.manualTrackingStatus),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "Manual Shipment Status",
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+              ),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                value: (ticket.manualTrackingStatus != null && ['Yet to be picked up', 'In transit', 'Out for delivery', 'Delivered'].contains(ticket.manualTrackingStatus)) 
+                    ? ticket.manualTrackingStatus 
+                    : 'Yet to be picked up',
+                dropdownColor: Colors.white,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.blue.withOpacity(0.05),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 13, color: Colors.blue, fontWeight: FontWeight.bold),
+                items: ['Yet to be picked up', 'In transit', 'Out for delivery', 'Delivered']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (val) => _updateHardwareStatus(
+                    ticket.id!, ticket.isHardwareComplaint, ticket.trackingLink, manualStatus: val),
+              ),
+              if (ticket.trackingLink != null && ticket.trackingLink!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _launchTracking(ticket.trackingLink!),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text("Open Public Tracker"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey.shade800,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ],
+            const SizedBox(height: 16),
             
             // Action Buttons
             Row(
@@ -660,13 +813,12 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
     return fallback;
   }
 
-  Future<void> _submitResponse(String id, String text) async {
-    if (text.trim().isEmpty) return;
-    final success = await _repository.updateTicketResponse(id, text);
+  Future<void> _submitResponse(String id, String response) async {
+    final success = await _repository.addTicketReply(id, response);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? "Response sent and ticket resolved" : "Failed to send response"),
+          content: Text(success ? "Reply sent" : "Failed to send reply"),
           backgroundColor: success ? const Color(0xFF10B981) : Colors.red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -686,6 +838,36 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
+    }
+  }
+
+  Future<void> _updateHardwareStatus(
+      String id, bool isHardware, String? trackingLink, {String? manualStatus}) async {
+    final success =
+        await _repository.updateTicketHardwareDetails(id, isHardware, trackingLink, manualTrackingStatus: manualStatus);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              success ? "Hardware details updated" : "Failed to update details"),
+          backgroundColor: success ? const Color(0xFF10B981) : Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _launchTracking(String link) async {
+    final url = Uri.parse(link);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not launch tracking link")),
+        );
+      }
     }
   }
 }
@@ -752,6 +934,185 @@ class _ReplyInputState extends State<_ReplyInput> {
                 },
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _TrackingInput extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onSave;
+  const _TrackingInput({required this.initialValue, required this.onSave});
+
+  @override
+  State<_TrackingInput> createState() => _TrackingInputState();
+}
+
+class _TrackingInputState extends State<_TrackingInput> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              style: const TextStyle(fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: "Enter Delhivery Tracking Link / AWB...",
+                hintStyle: TextStyle(color: Colors.grey),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.all(14),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.save, color: Color(0xFF2B1055), size: 18),
+            onPressed: () => widget.onSave(_controller.text),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveTrackingStatus extends StatefulWidget {
+  final String awb;
+  const _LiveTrackingStatus({required this.awb});
+
+  @override
+  State<_LiveTrackingStatus> createState() => _LiveTrackingStatusState();
+}
+
+class _LiveTrackingStatusState extends State<_LiveTrackingStatus> {
+  final _delhiveryRepo = DelhiveryRepository();
+  Map<String, dynamic>? _status;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStatus();
+  }
+
+  @override
+  void didUpdateWidget(_LiveTrackingStatus oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.awb != widget.awb) {
+      _fetchStatus();
+    }
+  }
+
+  Future<void> _fetchStatus() async {
+    if (DelhiveryRepository.apiToken.isEmpty) return;
+    
+    // Simple AWB check (usually numbers)
+    if (!widget.awb.contains(RegExp(r'[0-9]'))) return;
+
+    setState(() => _isLoading = true);
+    final data = await _delhiveryRepo.getTrackingStatus(widget.awb);
+    if (mounted) {
+      setState(() {
+        _status = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (DelhiveryRepository.apiToken.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.orange.withOpacity(0.2)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 16),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Delhivery API Token not configured. Live tracking disabled.",
+                style: TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+
+    if (_status == null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text(
+          "Could not fetch live status. Check AWB number.",
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      );
+    }
+
+    final statusText = _status!['Status']['Status'] ?? 'Unknown';
+    final location = _status!['Status']['ScannedLocation'] ?? 'N/A';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping, size: 16, color: Color(0xFF10B981)),
+              const SizedBox(width: 8),
+              Text(
+                "Live Status: $statusText",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF065F46),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Last Scan: $location",
+            style: const TextStyle(fontSize: 12, color: Color(0xFF047857)),
           ),
         ],
       ),

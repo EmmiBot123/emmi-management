@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
 import '../../Resources/api_endpoints.dart';
+import '../../Model/Marketing/ShippingDetails.dart';
+import '../../Repository/Statistics/statistics_repository.dart';
 
 
 class QubiqProvider extends ChangeNotifier {
@@ -17,6 +19,15 @@ class QubiqProvider extends ChangeNotifier {
   List<SchoolVisit> confirmedSchools = [];
   bool isLoading = false;
   String? errorMessage;
+
+  String searchQuery = "";
+  String statusFilter = "All"; // "All", "Active", "Pending", "None"
+
+  Map<String, dynamic> globalStats = {};
+  Map<String, Map<String, dynamic>> schoolStats = {};
+  bool isStatsLoading = false;
+
+  final StatisticsRepository _statsRepo = StatisticsRepository();
 
   // Revised fetch method - fetches ALL visits to include those from other users
   Future<void> loadConfirmedSchools(String userId) async {
@@ -98,6 +109,60 @@ class QubiqProvider extends ChangeNotifier {
       confirmedSchools = [];
     } finally {
       isLoading = false;
+      notifyListeners();
+      // Auto-load metrics after schools are loaded
+      loadAllMetrics();
+    }
+  }
+
+  List<SchoolVisit> get filteredSchools {
+    return confirmedSchools.where((s) {
+      final matchesSearch = s.schoolProfile.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          s.schoolProfile.city.toLowerCase().contains(searchQuery.toLowerCase());
+      
+      bool matchesStatus = true;
+      final isPending = s.adminId == 'PENDING_SETUP';
+      final hasAdmin = s.adminId != null && s.adminId!.isNotEmpty && !isPending;
+
+      if (statusFilter == "Active") matchesStatus = hasAdmin;
+      else if (statusFilter == "Pending") matchesStatus = isPending;
+      else if (statusFilter == "None") matchesStatus = !hasAdmin && !isPending;
+
+      return matchesSearch && matchesStatus;
+    }).toList();
+  }
+
+  void setSearchQuery(String query) {
+    searchQuery = query;
+    notifyListeners();
+  }
+
+  void setStatusFilter(String filter) {
+    statusFilter = filter;
+    notifyListeners();
+  }
+
+  Future<void> loadAllMetrics() async {
+    try {
+      isStatsLoading = true;
+      notifyListeners();
+
+      // 1. Load Global Stats
+      globalStats = await _statsRepo.getGlobalStats();
+
+      // 2. Load Stats for each school (parallelized)
+      final futures = confirmedSchools.map((s) async {
+        if (s.schoolCode != null && s.schoolCode!.isNotEmpty) {
+          final stats = await _statsRepo.getSchoolStats(s.schoolCode!);
+          schoolStats[s.schoolCode!] = stats;
+        }
+      });
+      await Future.wait(futures);
+
+    } catch (e) {
+      print("Error loading metrics: $e");
+    } finally {
+      isStatsLoading = false;
       notifyListeners();
     }
   }
@@ -191,6 +256,37 @@ class QubiqProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       errorMessage = "Manual mark failed: $e";
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateShippingStatus(SchoolVisit visit, ShippingDetails newDetails) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      if (visit.id == null) return false;
+
+      await FirebaseFirestore.instance
+          .collection('school_visits')
+          .doc(visit.id)
+          .update({
+        'shippingDetails': newDetails.toJson(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local list
+      final index = confirmedSchools.indexWhere((v) => v.id == visit.id);
+      if (index != -1) {
+        confirmedSchools[index].shippingDetails = newDetails;
+      }
+
+      return true;
+    } catch (e) {
+      print("Error updating shipping: $e");
       return false;
     } finally {
       isLoading = false;
