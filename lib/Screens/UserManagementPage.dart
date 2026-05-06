@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -651,16 +652,80 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: _C.surface,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
-
-    if (msg.toLowerCase().contains("successful")) {
+    if (msg.startsWith("http")) {
       widget.onAdded();
-      Navigator.pop(context);
+      
+      // Show dialog with the link
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: _C.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Setup Link Generated",
+              style: TextStyle(
+                  color: _C.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Copy this link and send it to the new member:",
+                style: TextStyle(color: _C.textSecondary, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _C.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _C.surfaceLight),
+                ),
+                child: SelectableText(
+                  msg,
+                  style: const TextStyle(color: _C.textPrimary, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: msg));
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                  content: const Text("Link copied to clipboard"),
+                  backgroundColor: _C.surface,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ));
+              },
+              child: const Text("Copy", style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Done", style: TextStyle(color: _C.textMuted)),
+            ),
+          ],
+        ),
+      );
+
+      // Now close the bottom sheet
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: msg.toLowerCase().contains("failed") ? _C.danger : _C.surface,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+
+      if (msg.toLowerCase().contains("successful")) {
+        widget.onAdded();
+        Navigator.pop(context);
+      }
     }
   }
 

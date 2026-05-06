@@ -293,15 +293,9 @@ class UserProvider extends ChangeNotifier {
       const String baseUrl = "https://emmi-management.netlify.app";
       final String inviteLink = "$baseUrl/#/signup?invite=true&token=$token&email=${Uri.encodeComponent(email)}&role=$role";
 
-      // 4. Send Email via EmailJS
-      await _sendInviteEmail(
-        toEmail: email.trim(),
-        name: name.trim(),
-        inviteLink: inviteLink,
-        role: role,
-      );
-
-      return "Invitation sent successfully to $email";
+      // 4. Return the generated link instead of sending an email
+      // per the user's request to manually copy and send the link.
+      return inviteLink;
     } catch (e) {
       return "Failed to send invitation: $e";
     } finally {
