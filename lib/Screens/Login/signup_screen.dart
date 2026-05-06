@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../Providers/AuthProvider.dart';
 import '../../Services/Auth_service.dart';
 
@@ -72,6 +73,8 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
 
     setState(() => loading = true);
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     try {
       // 1. If it's an invite, validate the token first
       if (_isInvite && _inviteToken != null) {
@@ -95,8 +98,6 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
           throw Exception("Email does not match invitation.");
         }
       }
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       // 2. Perform Sign Up
       await service.signUp(
@@ -170,17 +171,17 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-                  color: Colors.white.withOpacity(0.65),
+                  color: Colors.white.withValues(alpha: 0.65),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 25,
                       offset: const Offset(0, 10),
                       spreadRadius: -5,
                     ),
                   ],
                   border: Border.all(
-                      color: Colors.white.withOpacity(0.8), width: 1.5),
+                      color: Colors.white.withValues(alpha: 0.8), width: 1.5),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(28),
@@ -301,7 +302,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
       style: const TextStyle(color: _textPrimary, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
+        hintStyle: TextStyle(color: _textSecondary.withValues(alpha: 0.7)),
         prefixIcon: Icon(icon, color: _textSecondary),
         filled: true,
         fillColor: _inputFill,
@@ -313,7 +314,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade200.withOpacity(0.6)),
+          borderSide: BorderSide(color: Colors.grey.shade200.withValues(alpha: 0.6)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

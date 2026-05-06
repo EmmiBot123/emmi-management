@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../Providers/AuthProvider.dart';
 import '../../Services/Auth_service.dart';
-import 'SignupScreen.dart';
+import 'signup_screen.dart';
 
 class LoginScreenLight extends StatefulWidget {
   const LoginScreenLight({super.key});
