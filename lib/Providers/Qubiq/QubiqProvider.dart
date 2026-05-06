@@ -10,6 +10,7 @@ import 'dart:math';
 import '../../Resources/api_endpoints.dart';
 import '../../Model/Marketing/ShippingDetails.dart';
 import '../../Repository/Statistics/statistics_repository.dart';
+import '../../Repository/Statistics/login_map_repository.dart';
 
 
 class QubiqProvider extends ChangeNotifier {
@@ -28,6 +29,10 @@ class QubiqProvider extends ChangeNotifier {
   bool isStatsLoading = false;
 
   final StatisticsRepository _statsRepo = StatisticsRepository();
+
+  // 📍 Login Map Data
+  List<Map<String, dynamic>> loginLocations = [];
+  bool isLoginMapLoading = false;
 
   // Revised fetch method - fetches ALL visits to include those from other users
   Future<void> loadConfirmedSchools(String userId) async {
@@ -159,10 +164,41 @@ class QubiqProvider extends ChangeNotifier {
       });
       await Future.wait(futures);
 
+      // 3. Load Login Map Data (from Qubiq Firebase)
+      _loadLoginMapData();
+
     } catch (e) {
       print("Error loading metrics: $e");
     } finally {
       isStatsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 📍 Load login locations for the India map
+  Future<void> _loadLoginMapData() async {
+    try {
+      isLoginMapLoading = true;
+      notifyListeners();
+
+      loginLocations = await LoginMapRepository.getRecentLogins(hours: 168); // Last 7 days
+
+      // Also update login type counts in globalStats if not already from backend
+      if ((globalStats['schoolLogins'] ?? 0) == 0 && (globalStats['homeLogins'] ?? 0) == 0) {
+        int schoolLogins = 0;
+        int homeLogins = 0;
+        for (final login in loginLocations) {
+          if (login['loginType'] == 'school') schoolLogins++;
+          else homeLogins++;
+        }
+        globalStats['schoolLogins'] = schoolLogins;
+        globalStats['homeLogins'] = homeLogins;
+      }
+
+    } catch (e) {
+      print("Error loading login map data: $e");
+    } finally {
+      isLoginMapLoading = false;
       notifyListeners();
     }
   }
@@ -241,6 +277,24 @@ class QubiqProvider extends ChangeNotifier {
 
       final adminId = customAdminId ?? "MANUAL_ADMIN_${visit.schoolCode ?? 'UNKNOWN'}";
       
+      // 1. Recover keys from pending_setups if available
+      Map<String, dynamic> keysToMigrate = {};
+      if (visit.setupToken != null) {
+        final pendingDoc = await FirebaseFirestore.instance.collection('pending_setups').doc(visit.setupToken).get();
+        if (pendingDoc.exists) {
+          keysToMigrate = pendingDoc.data()?['apiKeys'] as Map<String, dynamic>? ?? {};
+        }
+      }
+
+      // 2. Create the dummy user doc so we can store/fetch keys
+      await FirebaseFirestore.instance.collection('users').doc(adminId).set({
+        'name': 'Manually Verified Admin',
+        'role': 'ADMIN',
+        'schoolId': visit.schoolCode,
+        'apiKeys': keysToMigrate,
+      }, SetOptions(merge: true));
+
+      // 3. Mark visit as completed
       await FirebaseFirestore.instance
           .collection('school_visits')
           .doc(visit.id)
@@ -326,11 +380,13 @@ class QubiqProvider extends ChangeNotifier {
       // 1. Generate a unique token
       final String token = _generateRandomToken(32);
 
+      final String resolvedSchoolId = visit.schoolCode ?? (1000 + Random().nextInt(9000)).toString();
+
       // 2. Prepare data for 'pending_setups'
       final setupData = {
         'token': token,
         'email': email.trim(),
-        'schoolId': visit.schoolCode ?? (1000 + Random().nextInt(9000)).toString(),
+        'schoolId': resolvedSchoolId,
         'schoolName': visit.schoolProfile.name,
         'apiKeys': apiKeys.toJson(),
         'createdAt': FieldValue.serverTimestamp(),
@@ -354,6 +410,7 @@ class QubiqProvider extends ChangeNotifier {
         // Update local state for immediate UI feedback
         visit.adminId = 'PENDING_SETUP';
         visit.adminName = email;
+        visit.setupToken = token;
         notifyListeners();
       }
 
@@ -366,6 +423,7 @@ class QubiqProvider extends ChangeNotifier {
         toEmail: email.trim(),
         schoolName: visit.schoolProfile.name,
         setupLink: setupLink,
+        schoolId: resolvedSchoolId,
       );
 
       return setupLink;
@@ -389,6 +447,7 @@ class QubiqProvider extends ChangeNotifier {
     required String toEmail,
     required String schoolName,
     required String setupLink,
+    required String schoolId,
   }) async {
     const String serviceId = "service_bfu9is8";
     const String templateId = "template_h9apqoj"; 
@@ -406,6 +465,7 @@ class QubiqProvider extends ChangeNotifier {
             'email': toEmail, // Matches {{email}} in screenshot
             'name': schoolName, // Matches {{name}} in screenshot
             'setup_link': setupLink,
+            'school_id': schoolId,
           }
         }),
       );
@@ -639,6 +699,49 @@ class QubiqProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("⚠️ Discovery Sync failed: $e");
+    }
+  }
+
+  /// 🚀 Provision S3 Bucket & Devices via Backend (Bypass CORS)
+  Future<Map<String, dynamic>> provisionS3({
+    required String accessKey,
+    required String secretKey,
+    required String region,
+    required String bucketName,
+    required String devicePrefix,
+    required int rangeStart,
+    required int rangeEnd,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiEndpoints.provisionS3),
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": "b256f7241feee8f2626d617e4875ca385c47c9fc97b99bd3a6469a84064eff7c",
+        },
+        body: jsonEncode({
+          "accessKey": accessKey,
+          "secretKey": secretKey,
+          "region": region,
+          "bucketName": bucketName,
+          "devicePrefix": devicePrefix,
+          "rangeStart": rangeStart,
+          "rangeEnd": rangeEnd,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {"success": true, "message": data['message']};
+      } else {
+        return {
+          "success": false, 
+          "error": data['error'] ?? "Unknown Error",
+          "details": data['details'] ?? "",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "error": e.toString()};
     }
   }
 }

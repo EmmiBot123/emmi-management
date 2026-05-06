@@ -27,6 +27,7 @@ class ApiEndpoints {
   static String syncCourse = "$renderBaseUrl/admin/sync-course";
   static String getAdmin(String schoolId) => "$renderBaseUrl/admin/get-admin/$schoolId";
   static String discoverySync = "$renderBaseUrl/admin/discovery-sync";
+  static String provisionS3 = "$renderBaseUrl/admin/provision-s3";
 
 // You can add more later:
 // static const String createUser = "$baseUrl/users/create";

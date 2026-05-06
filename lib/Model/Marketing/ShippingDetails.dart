@@ -13,6 +13,9 @@ class ShippingDetails {
   final bool arrived; // Whether shipment arrived
   final String arrivedDate; // When it arrived
   final String status; // Custom status: "Yet to be picked up", "In Transit", etc.
+  final String handoverName; // Name of person who signed off
+  final String handoverPhone; // Phone of person who signed off
+  final String signatureUrl; // URL of the digital signature image
 
   ShippingDetails({
     this.address = "",
@@ -27,9 +30,15 @@ class ShippingDetails {
     /// defaults
     this.passedToInstallation = false,
     this.arrived = false,
+    this.isInstalled = false,
     this.arrivedDate = "",
     this.status = "",
+    this.handoverName = "",
+    this.handoverPhone = "",
+    this.signatureUrl = "",
   });
+
+  final bool isInstalled;
 
   factory ShippingDetails.fromJson(Map<String, dynamic>? json) {
     if (json == null) return ShippingDetails();
@@ -47,8 +56,12 @@ class ShippingDetails {
       /// NEW — safe fallback if backend doesn't send
       passedToInstallation: json["passedToInstallation"] ?? false,
       arrived: json["arrived"] ?? false,
+      isInstalled: json["isInstalled"] ?? false,
       arrivedDate: json["arrivedDate"] ?? "",
       status: json["status"] ?? "",
+      handoverName: json["handoverName"] ?? "",
+      handoverPhone: json["handoverPhone"] ?? "",
+      signatureUrl: json["signatureUrl"] ?? "",
     );
   }
 
@@ -65,8 +78,12 @@ class ShippingDetails {
         /// NEW
         "passedToInstallation": passedToInstallation,
         "arrived": arrived,
+        "isInstalled": isInstalled,
         "arrivedDate": arrivedDate,
         "status": status,
+        "handoverName": handoverName,
+        "handoverPhone": handoverPhone,
+        "signatureUrl": signatureUrl,
       };
 
   ShippingDetails copyWith({
@@ -80,8 +97,12 @@ class ShippingDetails {
     String? photoUrl,
     bool? passedToInstallation,
     bool? arrived,
+    bool? isInstalled,
     String? arrivedDate,
     String? status,
+    String? handoverName,
+    String? handoverPhone,
+    String? signatureUrl,
   }) {
     return ShippingDetails(
       address: address ?? this.address,
@@ -94,8 +115,12 @@ class ShippingDetails {
       photoUrl: photoUrl ?? this.photoUrl,
       passedToInstallation: passedToInstallation ?? this.passedToInstallation,
       arrived: arrived ?? this.arrived,
+      isInstalled: isInstalled ?? this.isInstalled,
       arrivedDate: arrivedDate ?? this.arrivedDate,
       status: status ?? this.status,
+      handoverName: handoverName ?? this.handoverName,
+      handoverPhone: handoverPhone ?? this.handoverPhone,
+      signatureUrl: signatureUrl ?? this.signatureUrl,
     );
   }
 }

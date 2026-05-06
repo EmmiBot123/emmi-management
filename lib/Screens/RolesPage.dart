@@ -8,8 +8,10 @@ import 'UserManagementPage.dart';
 import 'OperationsPage.dart';
 import 'SalesPage.dart';
 import 'SuperAdmin/super_admin_page.dart';
-import 'Qubiq/qubiq_page.dart';
 import 'Testing/testing_page.dart';
+import 'Accounts/accounts_dashboard.dart';
+import 'markerting/sales_dashboard.dart';
+import 'Qubiq/qubiq_page.dart';
 
 // ─── Dark palette (matches dashboard) ───
 class _P {
@@ -71,21 +73,21 @@ class _RolesPageState extends State<RolesPage> {
   Widget getRolePage(String role) {
     switch (role) {
       case "Dashboard":
-        return const SuperAdminPage();
+        return SuperAdminPage();
       case "Users":
-        return const UserManagementPage();
+        return UserManagementPage();
       case "Sales":
-        return const SalesPage();
+        return SalesPage();
       case "Accounts":
-        return SchoolVisitListPageAccounts();
+        return AccountsDashboard();
       case "Operations":
-        return const OperationsPage();
+        return OperationsPage();
       case "Qubiq":
-        return const QubiqPage();
+        return QubiqPage();
       case "Testing":
-        return const TestingPage();
+        return TestingPage();
       default:
-        return const SizedBox();
+        return SizedBox();
     }
   }
 
@@ -203,7 +205,7 @@ class _RolesPageState extends State<RolesPage> {
           // Main content fills the entire screen
           Positioned.fill(
             child: Navigator(
-              key: ValueKey("nav_${visibleRoles[selectedIndex]}"),
+              key: _navKey, // <--- Link to the key
               onGenerateRoute: (_) => MaterialPageRoute(
                 builder: (_) => getRolePage(visibleRoles[selectedIndex]),
               ),
@@ -271,26 +273,24 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
           curve: Curves.easeOut,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: _hovering
-                ? (widget.isDashboard ? _P.surfaceLight : Colors.grey.shade200)
-                : (widget.isDashboard ? _P.surface : Colors.white),
+            color: _P.bg,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: widget.isDashboard ? _P.surfaceLight : Colors.grey.shade300,
+              color: _P.surfaceLight,
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(widget.isDashboard ? 0.3 : 0.08),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Icon(
-            canPop ? Icons.arrow_back : Icons.menu,
-            size: 22,
-            color: widget.isDashboard ? _P.textSecondary : Colors.grey.shade700,
+            canPop ? Icons.close_rounded : Icons.menu_rounded,
+            size: 20,
+            color: Colors.white,
           ),
         ),
       ),

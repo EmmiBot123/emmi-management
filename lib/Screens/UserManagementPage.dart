@@ -640,12 +640,12 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     setState(() => _isSaving = true);
 
     final auth = context.read<AuthProvider>();
-    final msg = await context.read<UserProvider>().addUser(
-          name,
-          email,
-          _selectedRole!,
-          auth.userId!,
-          auth.name!,
+    final msg = await context.read<UserProvider>().sendTeamInvite(
+          name: name,
+          email: email,
+          role: _selectedRole!,
+          adminId: auth.userId!,
+          adminName: auth.name!,
         );
 
     if (!mounted) return;
@@ -703,7 +703,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
             const SizedBox(height: 20),
 
             const Text(
-              "Add Team Member",
+              "Invite Team Member",
               style: TextStyle(
                 color: _C.textPrimary,
                 fontSize: 20,
@@ -712,7 +712,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
             ),
             const SizedBox(height: 4),
             const Text(
-              "They'll receive an email with login credentials",
+              "They'll receive an invitation link to create their account",
               style: TextStyle(color: _C.textMuted, fontSize: 13),
             ),
 
@@ -828,7 +828,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
                         ),
                       )
                     : const Text(
-                        "Add User",
+                        "Send Invitation Link",
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,

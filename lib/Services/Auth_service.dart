@@ -169,6 +169,7 @@ class AuthService {
     required String password,
     required String name,
     String? phone,
+    String role = 'MARKETING',
     required AuthProvider authProvider,
   }) async {
     try {
@@ -186,7 +187,7 @@ class AuthService {
         'email': email,
         'name': name,
         'phone': phone,
-        'role': 'MARKETING', // Default role on signup
+        'role': role,
         'createdAt': FieldValue.serverTimestamp(),
       };
 

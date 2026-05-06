@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:minio/minio.dart';
+import 'dart:typed_data';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Providers/Qubiq/QubiqProvider.dart';
 import '../../Model/Qubiq/user_api_keys_model.dart';
+import '../../Repository/Statistics/key_pool_repository.dart';
 
 class ManageKeysDialog extends StatefulWidget {
   final SchoolVisit school;
@@ -25,7 +28,12 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
   final _excelCtrl = TextEditingController();
   final _wordCtrl = TextEditingController();
   final _bucketNameCtrl = TextEditingController();
+  final _devicePrefixCtrl = TextEditingController();
+  final _rangeStartCtrl = TextEditingController();
+  final _rangeEndCtrl = TextEditingController();
   bool _isLoadingKeys = true;
+  bool _isServerPC = false;
+  bool _isProvisioningS3 = false;
 
   @override
   void initState() {
@@ -51,6 +59,7 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
       _excelCtrl.text = keys.excel ?? "";
       _wordCtrl.text = keys.word ?? "";
       _bucketNameCtrl.text = keys.bucketName ?? "";
+      _isServerPC = (keys.bucketName != null && keys.bucketName!.isNotEmpty);
     }
 
     if (mounted) {
@@ -63,7 +72,17 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
     final provider = context.watch<QubiqProvider>();
 
     return AlertDialog(
-      title: Text("Manage API Keys for ${widget.school.schoolProfile.name}"),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text("Manage API Keys for ${widget.school.schoolProfile.name}", style: const TextStyle(fontSize: 16))),
+          TextButton.icon(
+            onPressed: _autoProvision,
+            icon: const Icon(Icons.auto_awesome, size: 16, color: Colors.purpleAccent),
+            label: const Text("Auto-Provision ✨", style: TextStyle(color: Colors.purpleAccent, fontSize: 12)),
+          ),
+        ],
+      ),
       content: SizedBox(
         width: 500,
         child: SingleChildScrollView(
@@ -84,7 +103,39 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
                       _textField("PowerPoint API Key", _pptCtrl),
                       _textField("Excel API Key", _excelCtrl),
                       _textField("Word API Key", _wordCtrl),
-                      _textField("Cloud Bucket Name", _bucketNameCtrl),
+                      const Divider(color: Colors.white10, height: 32),
+                      SwitchListTile(
+                        title: const Text("Is this a Server PC?", style: TextStyle(fontSize: 14)),
+                        subtitle: Text(_isServerPC ? "Bucket assignment required" : "No bucket assigned", style: const TextStyle(fontSize: 11)),
+                        value: _isServerPC,
+                        activeColor: Colors.purpleAccent,
+                        onChanged: (v) => setState(() => _isServerPC = v),
+                      ),
+                      if (_isServerPC) ...[
+                        _textField("Cloud Bucket Name", _bucketNameCtrl),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _textField("Device Prefix", _devicePrefixCtrl)),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 80, child: _textField("Start", _rangeStartCtrl)),
+                            const SizedBox(width: 8),
+                            SizedBox(width: 80, child: _textField("End", _rangeEndCtrl)),
+                          ],
+                        ),
+                        if (_isProvisioningS3)
+                          const LinearProgressIndicator(color: Colors.purpleAccent)
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _provisionS3,
+                              icon: const Icon(Icons.cloud_upload_rounded),
+                              label: const Text("Initialize S3 Bucket & Devices"),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),
+                            ),
+                          ),
+                      ],
                       if (provider.isLoading)
                         const Padding(
                           padding: EdgeInsets.all(16.0),
@@ -123,6 +174,139 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
     );
   }
 
+  void _autoProvision() async {
+    setState(() => _isLoadingKeys = true);
+    try {
+      final keys = await KeyPoolRepository.autoProvisionKeys(
+        widget.school.adminId ?? 'unknown',
+        widget.school.schoolProfile.name ?? 'unknown',
+      );
+
+      if (keys.isEmpty || (keys['openrouter'] == null && keys['gemini'] == null && keys['grok'] == null)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("⚠️ Key Pools are empty! Please refill in Settings.")),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        if (keys['openrouter'] != null) {
+          _neuralCtrl.text = keys['openrouter']!;
+          _helpBotCtrl.text = keys['openrouter']!;
+          _imageCtrl.text = keys['openrouter']!;
+          _translateCtrl.text = keys['openrouter']!;
+          _emmiLiteCtrl.text = keys['openrouter']!;
+          _blocklyCtrl.text = keys['openrouter']!;
+          _pyvibeCtrl.text = keys['openrouter']!;
+        }
+        if (keys['grok'] != null) _pptCtrl.text = keys['grok']!;
+        if (keys['gemini'] != null) {
+          _excelCtrl.text = keys['gemini']!;
+          _wordCtrl.text = keys['gemini']!;
+        }
+        
+        // Auto-assign bucket name if it's a Server PC
+        if (_isServerPC && _bucketNameCtrl.text.isEmpty) {
+          final cleanName = widget.school.schoolProfile.name?.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-') ?? 'school';
+          final shortId = widget.school.adminId?.substring(0, 5) ?? '000';
+          _bucketNameCtrl.text = "qubiq-$cleanName-$shortId";
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✨ Keys Auto-Provisioned from Pools")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingKeys = false);
+    }
+  }
+
+  void _provisionS3() async {
+    if (_bucketNameCtrl.text.isEmpty || _devicePrefixCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill Bucket Name and Device Prefix")),
+      );
+      return;
+    }
+
+    setState(() => _isProvisioningS3 = true);
+
+    try {
+      final awsConfig = await KeyPoolRepository.getAwsConfig().first;
+      if (awsConfig['accessKey'] == null || awsConfig['secretKey'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("❌ AWS Credentials missing! Set them in Key Pool Station.")),
+          );
+        }
+        return;
+      }
+
+      final bucket = _bucketNameCtrl.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '-');
+      final prefix = _devicePrefixCtrl.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      final start = int.tryParse(_rangeStartCtrl.text) ?? 1;
+      final end = int.tryParse(_rangeEndCtrl.text) ?? 30;
+
+      debugPrint("🚀 Requesting Backend S3 Provisioning for: $bucket");
+
+      final result = await context.read<QubiqProvider>().provisionS3(
+        accessKey: awsConfig['accessKey']!,
+        secretKey: awsConfig['secretKey']!,
+        region: awsConfig['region'] ?? 'us-east-1',
+        bucketName: bucket,
+        devicePrefix: prefix,
+        rangeStart: start,
+        rangeEnd: end,
+      );
+
+      if (mounted) {
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.green.shade800,
+              content: Text("🚀 ${result['message']}")
+            ),
+          );
+        } else {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text("S3 Provisioning Failed"),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: [
+                    Text("Error: ${result['error']}"),
+                    if (result['details'] != null) ...[
+                      const SizedBox(height: 10),
+                      Text("Details: ${result['details']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("‼️ S3 Provisioning Trigger Failed: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade800,
+            content: Text("❌ System Error: $e"),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProvisioningS3 = false);
+    }
+  }
+
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (widget.school.adminId == null) return;
@@ -138,7 +322,7 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
       ppt: _pptCtrl.text,
       excel: _excelCtrl.text,
       word: _wordCtrl.text,
-      bucketName: _bucketNameCtrl.text,
+      bucketName: _isServerPC ? _bucketNameCtrl.text : null,
     );
 
     final success = await context.read<QubiqProvider>().updateSchoolApiKeys(

@@ -228,7 +228,7 @@ class SchoolVisitProvider extends ChangeNotifier {
       installationVisits = visits
           .where((v) =>
               v.visitDetails.status == "CLOSED_WON" &&
-              v.shippingDetails.passedToInstallation == true)
+              v.payment.paymentConfirmed == true)
           .toList();
     } catch (e) {
       errorMessage = e.toString();
@@ -569,6 +569,34 @@ class SchoolVisitProvider extends ChangeNotifier {
 
       assemblyVisits.removeWhere((v) => v.id == visit.id);
       installationVisits.add(updatedVisit);
+
+      return true;
+    } catch (e) {
+      errorMessage = e.toString();
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> markAsInstalled(SchoolVisit visit) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final updatedVisit = visit.copyWith(
+        shippingDetails: visit.shippingDetails.copyWith(isInstalled: true),
+      );
+
+      await repository.updateVisit(updatedVisit);
+
+      // Update local state
+      final idx = visits.indexWhere((v) => v.id == visit.id);
+      if (idx != -1) visits[idx] = updatedVisit;
+
+      final installationIdx = installationVisits.indexWhere((v) => v.id == visit.id);
+      if (installationIdx != -1) installationVisits[installationIdx] = updatedVisit;
 
       return true;
     } catch (e) {

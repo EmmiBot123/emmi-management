@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../Providers/AuthProvider.dart';
 import '../../Resources/theme_constants.dart';
 import 'Assembly/School_assembly_page.dart';
+import 'Installation/installation_dashboard.dart';
 import 'Installation/installation_team_page.dart';
 
 class OperationsPage extends StatefulWidget {
@@ -49,7 +50,7 @@ class _OperationsPageState extends State<OperationsPage> with SingleTickerProvid
     final userRole = auth.role ?? "";
 
     if (userRole == "ASSEMBLY_TEAM") return const SchoolAssemblyPage();
-    if (userRole == "INSTALLATION_TEAM") return const InstallationTeamPage();
+    if (userRole == "INSTALLATION_TEAM") return const InstallationDashboard();
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -128,7 +129,7 @@ class _OperationsPageState extends State<OperationsPage> with SingleTickerProvid
               switchInCurve: Curves.easeOutCubic,
               child: KeyedSubtree(
                 key: ValueKey(_tabIndex),
-                child: _tabIndex == 0 ? const SchoolAssemblyPage() : const InstallationTeamPage(),
+                child: _tabIndex == 0 ? const SchoolAssemblyPage() : const InstallationDashboard(),
               ),
             ),
           ),

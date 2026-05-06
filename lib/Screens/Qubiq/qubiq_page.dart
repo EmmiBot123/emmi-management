@@ -2,6 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../Providers/Qubiq/QubiqProvider.dart';
 import '../Support/support_ticket_list_page.dart';
@@ -14,6 +16,7 @@ import '../Ads/ads_page.dart';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/Testing/feedback_model.dart';
 import '../../Repository/Testing/testing_repository.dart';
+import '../../Repository/Statistics/key_pool_repository.dart';
 
 class QubiqPage extends StatefulWidget {
   const QubiqPage({super.key});
@@ -83,6 +86,12 @@ class _QubiqPageState extends State<QubiqPage> {
                         ),
                       ),
                       const Spacer(),
+                      _buildTopButton(
+                        icon: Icons.vpn_key_rounded,
+                        label: "Key Pool Station ✨",
+                        onPressed: _showKeyPoolStation,
+                      ),
+                      const SizedBox(width: 12),
                       _buildTopButton(
                         icon: Icons.support_agent,
                         label: "Support",
@@ -252,11 +261,16 @@ class _QubiqPageState extends State<QubiqPage> {
     return provider.isLoading && provider.confirmedSchools.isEmpty
         ? const Center(
             child: CircularProgressIndicator(color: Color(0xFF38BDF8)))
-        : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        : RefreshIndicator(
+            onRefresh: () => provider.loadConfirmedSchools(""),
+            backgroundColor: const Color(0xFF1E293B),
+            color: const Color(0xFF38BDF8),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -305,6 +319,12 @@ class _QubiqPageState extends State<QubiqPage> {
                       physics: const BouncingScrollPhysics(),
                       children: [
                         _buildMetricCard(
+                          "Confirmed Schools", 
+                          provider.confirmedSchools.length, 
+                          const Color(0xFFF43F5E), 
+                          Icons.verified_rounded,
+                        ),
+                        _buildMetricCard(
                           "Total Users", 
                           provider.globalStats['users'] ?? 0, 
                           const Color(0xFF38BDF8), 
@@ -323,6 +343,8 @@ class _QubiqPageState extends State<QubiqPage> {
                 const SizedBox(height: 24),
                 if (provider.globalStats.isNotEmpty)
                   _buildGlobalCharts(provider.globalStats),
+                const SizedBox(height: 16),
+                _buildMapCard(provider.confirmedSchools, provider.loginLocations),
                 const SizedBox(height: 24),
 
                 // 🔍 Search & Filter Bar
@@ -364,18 +386,14 @@ class _QubiqPageState extends State<QubiqPage> {
                 ),
                 const SizedBox(height: 16),
 
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () => provider.loadConfirmedSchools(""),
-                    backgroundColor: const Color(0xFF1E293B),
-                    color: const Color(0xFF38BDF8),
-                    child: provider.filteredSchools.isEmpty
-                        ? _emptyState()
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(bottom: 120),
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: provider.filteredSchools.length,
-                            itemBuilder: (context, index) {
+                provider.filteredSchools.isEmpty
+                    ? _emptyState()
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 120),
+                        itemCount: provider.filteredSchools.length,
+                        itemBuilder: (context, index) {
                               final school = provider.filteredSchools[index];
                               final isPending =
                                   school.adminId == 'PENDING_SETUP';
@@ -391,14 +409,14 @@ class _QubiqPageState extends State<QubiqPage> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 24),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B).withOpacity(0.3),
+                                  color: const Color(0xFF1E293B).withOpacity(0.4),
                                   borderRadius: BorderRadius.circular(32),
-                                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                  border: Border.all(color: Colors.white.withOpacity(0.12), width: 1.5),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
+                                      color: Colors.black.withOpacity(0.4),
+                                      blurRadius: 25,
+                                      offset: const Offset(0, 12),
                                     )
                                   ],
                                 ),
@@ -447,6 +465,28 @@ class _QubiqPageState extends State<QubiqPage> {
                                                         "${school.schoolProfile.city}, ${school.schoolProfile.state}",
                                                         style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
                                                       ),
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: [
+                                                          Icon(Icons.tag_rounded, size: 12, color: const Color(0xFF38BDF8).withOpacity(0.7)),
+                                                          const SizedBox(width: 4),
+                                                          Text("ID: ${school.id?.substring(school.id!.length - 4).toUpperCase() ?? '0000'}", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.bold)),
+                                                          const SizedBox(width: 12),
+                                                          Icon(Icons.vpn_key_rounded, size: 12, color: Colors.orangeAccent.withOpacity(0.7)),
+                                                          const SizedBox(width: 4),
+                                                          Text("PIN: ${school.schoolCode ?? 'N/A'}", style: TextStyle(color: Colors.orangeAccent.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.bold)),
+                                                          const SizedBox(width: 12),
+                                                          Icon(Icons.person_outline_rounded, size: 12, color: Colors.white.withOpacity(0.4)),
+                                                          const SizedBox(width: 4),
+                                                          Expanded(
+                                                            child: Text(
+                                                              school.adminName ?? 'No Admin',
+                                                              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
+                                                              overflow: TextOverflow.ellipsis,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -462,10 +502,23 @@ class _QubiqPageState extends State<QubiqPage> {
                                                 _buildMiniStat(Icons.people_alt_rounded, provider.schoolStats[school.schoolCode]?['users'] ?? 0, "Users"),
                                                 _buildMiniStat(Icons.assignment_turned_in_rounded, provider.schoolStats[school.schoolCode]?['assignments'] ?? 0, "Tasks"),
                                                 _buildMiniStat(Icons.rocket_launch_rounded, provider.schoolStats[school.schoolCode]?['projects'] ?? 0, "Proj"),
-                                                _buildSmallButton(
-                                                  hasAdmin ? "Manage" : "Setup", 
-                                                  const Color(0xFF38BDF8), 
-                                                  () => showDialog(context: context, builder: (_) => hasAdmin ? ManageKeysDialog(school: school) : CreateAdminDialog(school: school))
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    if (isPending) ...[
+                                                      _buildSmallButton(
+                                                        "Verify", 
+                                                        Colors.orange.shade400, 
+                                                        () => _showManualCompleteDialog(context, school)
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                    ],
+                                                    _buildSmallButton(
+                                                      hasAdmin ? "Manage" : (isPending ? "Keys/Resend" : "Setup"), 
+                                                      const Color(0xFF38BDF8), 
+                                                      () => showDialog(context: context, builder: (_) => hasAdmin ? ManageKeysDialog(school: school) : CreateAdminDialog(school: school))
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
@@ -477,12 +530,11 @@ class _QubiqPageState extends State<QubiqPage> {
                                 ),
                               );
                             },
-                          ),
-                  ),
-                ),
+                      ),
               ],
             ),
-          );
+          ),
+        );
   }
 
   Widget _buildSmallButton(String label, Color color, VoidCallback onTap) {
@@ -681,26 +733,26 @@ class _QubiqPageState extends State<QubiqPage> {
     return Row(
       children: [
         Expanded(
-          flex: 4,
+          flex: 3,
           child: _buildChartCard(
             "User Composition",
             PieChart(
               PieChartData(
                 sectionsSpace: 4,
-                centerSpaceRadius: 30,
+                centerSpaceRadius: 20,
                 sections: [
                   PieChartSectionData(
                     value: (stats['students'] ?? 0).toDouble(),
                     title: 'Students',
                     color: const Color(0xFF38BDF8),
-                    radius: 40,
+                    radius: 35,
                     titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   PieChartSectionData(
                     value: (stats['teachers'] ?? 0).toDouble(),
                     title: 'Teachers',
                     color: Colors.orange.shade400,
-                    radius: 40,
+                    radius: 35,
                     titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ],
@@ -708,9 +760,38 @@ class _QubiqPageState extends State<QubiqPage> {
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
-          flex: 6,
+          flex: 3,
+          child: _buildChartCard(
+            "Login Origins",
+            PieChart(
+              PieChartData(
+                sectionsSpace: 4,
+                centerSpaceRadius: 20,
+                sections: [
+                  PieChartSectionData(
+                    value: (stats['schoolLogins'] ?? 0).toDouble() == 0 && (stats['homeLogins'] ?? 0).toDouble() == 0 ? 1 : (stats['schoolLogins'] ?? 0).toDouble(),
+                    title: 'School',
+                    color: Colors.purple.shade400,
+                    radius: 35,
+                    titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  PieChartSectionData(
+                    value: (stats['homeLogins'] ?? 0).toDouble(),
+                    title: 'Home',
+                    color: Colors.pink.shade400,
+                    radius: 35,
+                    titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
           child: _buildChartCard(
             "Activity Overview",
             BarChart(
@@ -765,6 +846,254 @@ class _QubiqPageState extends State<QubiqPage> {
           Expanded(child: chart),
         ],
       ),
+    );
+  }
+
+  Widget _buildMapCard(List<SchoolVisit> schools, List<Map<String, dynamic>> loginLocations) {
+    int teacherCount = 0;
+    int studentSchoolCount = 0;
+    int studentHomeCount = 0;
+
+    for (var login in loginLocations) {
+      final String userRole = (login['userRole'] ?? 'student').toString().toLowerCase();
+      final String loginType = login['loginType'] ?? 'unknown';
+      if (userRole == 'teacher' || userRole == 'admin') teacherCount++;
+      else if (loginType == 'school') studentSchoolCount++;
+      else studentHomeCount++;
+    }
+
+    return GestureDetector(
+      onTap: () => _showFullMap(schools, loginLocations),
+      child: Container(
+        height: 280, // Made it more compact
+        width: 420,  // Fixed width to make it a "Small Widget"
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))
+          ],
+        ),
+        child: Stack(
+          children: [
+            // 1. The Map Preview (Locked & Focused on India)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: IgnorePointer(
+                child: FlutterMap(
+                  options: const MapOptions(
+                    initialCenter: LatLng(22.0, 78.9629),
+                    initialZoom: 3.8,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                      subdomains: const ['a', 'b', 'c', 'd'],
+                    ),
+                    MarkerLayer(markers: _buildMarkers(schools, loginLocations, isFullView: false)),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2. Click to Zoom Label
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white24)),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 14),
+                    SizedBox(width: 4),
+                    Text("EXPAND MAP", style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  ],
+                ),
+              ),
+            ),
+
+            // 3. Floating Counts Overlay
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildMapStatBadge("👨‍🏫", "$teacherCount", "T"),
+                    const SizedBox(width: 4),
+                    _buildMapStatBadge("🏫", "$studentSchoolCount", "S"),
+                    const SizedBox(width: 4),
+                    _buildMapStatBadge("🏠", "$studentHomeCount", "H"),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Marker> _buildMarkers(List<SchoolVisit> schools, List<Map<String, dynamic>> loginLocations, {required bool isFullView}) {
+    List<Marker> markers = [];
+    
+    // Schools (Red Location Pins)
+    for (var school in schools) {
+      final coord = _getCoord(school.schoolProfile.city, school.schoolProfile.state);
+      if (coord != null) {
+        markers.add(
+          Marker(
+            point: coord,
+            width: isFullView ? 40 : 24,
+            height: isFullView ? 40 : 24,
+            child: Icon(Icons.location_on_rounded, color: const Color(0xFFF43F5E), size: isFullView ? 30 : 16),
+          ),
+        );
+      }
+    }
+
+    // User Logins (Emoji Markers)
+    for (var login in loginLocations) {
+      final double lat = (login['lat'] ?? 0.0).toDouble();
+      final double lng = (login['lng'] ?? 0.0).toDouble();
+      if (lat < 6 || lat > 38 || lng < 68 || lng > 98) continue;
+
+      final String userRole = (login['userRole'] ?? 'student').toString().toLowerCase();
+      final bool isTeacher = userRole == 'teacher' || userRole == 'admin';
+      final bool isSchool = login['loginType'] == 'school';
+      final bool isActive = login['sessionActive'] == true;
+
+      final String emoji = isTeacher ? '👨‍🏫' : (isSchool ? '🏫' : '🏠');
+      
+      markers.add(
+        Marker(
+          point: LatLng(lat, lng),
+          width: isFullView ? 40 : 22,
+          height: isFullView ? 40 : 22,
+          child: Tooltip(
+            message: '${login['userName']} (${isTeacher ? 'Teacher' : 'Student'})\n${isSchool ? '🏫 School' : '🏠 Home'}',
+            child: Container(
+              alignment: Alignment.center,
+              decoration: isActive ? BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: (isTeacher ? Colors.cyan : (isSchool ? Colors.purple : Colors.pink)).withOpacity(0.4), blurRadius: 10, spreadRadius: 2)
+                ],
+              ) : null,
+              child: Text(
+                emoji,
+                style: TextStyle(fontSize: isFullView ? 28 : 14),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  void _showFullMap(List<SchoolVisit> schools, List<Map<String, dynamic>> loginLocations) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0F172A),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: const Text("India Login Map", style: TextStyle(color: Colors.white)),
+            leading: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+          ),
+          body: FlutterMap(
+            options: const MapOptions(
+              initialCenter: LatLng(21.5, 78.9629),
+              initialZoom: 5.0,
+              minZoom: 4.5,
+              maxZoom: 12.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
+              ),
+              MarkerLayer(markers: _buildMarkers(schools, loginLocations, isFullView: true)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  LatLng? _getCoord(String? city, String? state) {
+    final Map<String, LatLng> cityCoords = {
+      'Jaipur': const LatLng(26.9124, 75.7873), 'Delhi': const LatLng(28.6139, 77.2090),
+      'Mumbai': const LatLng(19.0760, 72.8777), 'Bangalore': const LatLng(12.9716, 77.5946),
+      'Kochi': const LatLng(9.9312, 76.2673), 'Chennai': const LatLng(13.0827, 80.2707),
+      'Kolkata': const LatLng(22.5726, 88.3639), 'Hyderabad': const LatLng(17.3850, 78.4867),
+      'Pune': const LatLng(18.5204, 73.8567), 'Ahmedabad': const LatLng(23.0225, 72.5714),
+      'Lucknow': const LatLng(26.8467, 80.9462), 'Bhopal': const LatLng(23.2599, 77.4126),
+      'Chandigarh': const LatLng(30.7333, 76.7794), 'Patna': const LatLng(25.6093, 85.1376),
+      'Guwahati': const LatLng(26.1445, 91.7362), 'Bhubaneswar': const LatLng(20.2961, 85.8245),
+      'Ranchi': const LatLng(23.3441, 85.3096), 'Raipur': const LatLng(21.2514, 81.6296),
+      'Dehradun': const LatLng(30.3165, 78.0322), 'Visakhapatnam': const LatLng(17.6868, 83.2185),
+    };
+    return cityCoords[city] ?? cityCoords[state];
+  }
+
+  Widget _buildMapLegend(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 9)),
+      ],
+    );
+  }
+
+  Widget _buildMapStatBadge(String emoji, String count, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          Text(count, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  void _showKeyPoolStation() {
+    showDialog(
+      context: context,
+      builder: (context) => const _KeyPoolStationDialog(),
     );
   }
 }
@@ -971,3 +1300,244 @@ class _TestingReportsSectionState extends State<_TestingReportsSection> {
     );
   }
 }
+
+class _KeyPoolStationDialog extends StatefulWidget {
+  const _KeyPoolStationDialog();
+
+  @override
+  State<_KeyPoolStationDialog> createState() => _KeyPoolStationDialogState();
+}
+
+class _KeyPoolStationDialogState extends State<_KeyPoolStationDialog> {
+  final _keyCtrl = TextEditingController();
+  final _awsAccessCtrl = TextEditingController();
+  final _awsSecretCtrl = TextEditingController();
+  final _awsRegionCtrl = TextEditingController();
+  String _selectedProvider = 'openrouter';
+  bool _isImporting = false;
+  bool _isSavingAws = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAwsConfig();
+  }
+
+  void _loadAwsConfig() async {
+    final config = await KeyPoolRepository.getAwsConfig().first;
+    _awsAccessCtrl.text = config['accessKey'] ?? '';
+    _awsSecretCtrl.text = config['secretKey'] ?? '';
+    _awsRegionCtrl.text = config['region'] ?? 'ap-south-1';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF0F172A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Row(
+        children: [
+          Icon(Icons.vpn_key_rounded, color: Colors.purpleAccent),
+          SizedBox(width: 12),
+          Text("Key Pool Station", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView( // 👈 Added scrolling to fix overflow
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StreamBuilder<Map<String, int>>(
+                stream: KeyPoolRepository.getPoolStats(),
+                builder: (context, snapshot) {
+                  final stats = snapshot.data ?? {'openrouter': 0, 'gemini': 0, 'grok': 0};
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStat("OR", stats['openrouter'] ?? 0, Colors.purpleAccent),
+                        _buildStat("GEM", stats['gemini'] ?? 0, Colors.blueAccent),
+                        _buildStat("GROK", stats['grok'] ?? 0, Colors.orangeAccent),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Text("Add to Pool:", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedProvider,
+                        dropdownColor: const Color(0xFF1E293B),
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        items: ['openrouter', 'gemini', 'grok']
+                            .map((p) => DropdownMenuItem(value: p, child: Text(p.toUpperCase())))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedProvider = v!),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _keyCtrl,
+                maxLines: 4, // Reduced maxLines slightly for space
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: "Paste keys here (one per line)...",
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Colors.white38, size: 14),
+                  SizedBox(width: 8),
+                  Text("Paste all keys at once, then hit Import.", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+              const Divider(color: Colors.white10, height: 40),
+              const Row(
+                children: [
+                  Icon(Icons.cloud_queue_rounded, color: Colors.blueAccent, size: 18),
+                  SizedBox(width: 12),
+                  Text("AWS S3 Setup", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _awsField("Access Key", _awsAccessCtrl),
+              _awsField("Secret Key", _awsSecretCtrl, obscure: true),
+              Row(
+                children: [
+                  Expanded(child: _awsField("Region", _awsRegionCtrl)),
+                  const SizedBox(width: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: ElevatedButton(
+                      onPressed: _isSavingAws ? null : _saveAws,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent.withOpacity(0.8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: _isSavingAws ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Save AWS", style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actionsPadding: const EdgeInsets.only(right: 16, bottom: 16),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Close", style: TextStyle(color: Colors.white60)),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: _isImporting ? null : _import,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purpleAccent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: _isImporting 
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+            : const Text("Import Keys", style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+
+  Widget _awsField(String label, TextEditingController ctrl, {bool obscure = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: TextField(
+        controller: ctrl,
+        obscureText: obscure,
+        style: const TextStyle(color: Colors.white, fontSize: 12),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white38),
+          filled: true,
+          fillColor: Colors.black12,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  void _saveAws() async {
+    setState(() => _isSavingAws = true);
+    try {
+      await KeyPoolRepository.saveAwsConfig({
+        'accessKey': _awsAccessCtrl.text.trim(),
+        'secretKey': _awsSecretCtrl.text.trim(),
+        'region': _awsRegionCtrl.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ AWS Config Saved")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingAws = false);
+    }
+  }
+
+  Widget _buildStat(String label, int count, Color color) {
+    return Column(
+      children: [
+        Text(count.toString(), style: TextStyle(color: color, fontSize: 28, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11, letterSpacing: 1)),
+      ],
+    );
+  }
+
+  void _import() async {
+    if (_keyCtrl.text.trim().isEmpty) return;
+    setState(() => _isImporting = true);
+    try {
+      final keys = _keyCtrl.text.split('\n').map((k) => k.trim()).where((k) => k.isNotEmpty).toList();
+      await KeyPoolRepository.importKeys(_selectedProvider, keys);
+      _keyCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("✅ Imported ${keys.length} keys into $_selectedProvider pool"),
+            backgroundColor: Colors.green.shade800,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+}
+

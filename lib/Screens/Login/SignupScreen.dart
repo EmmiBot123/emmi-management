@@ -25,8 +25,32 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
   final phoneController = TextEditingController();
 
   bool loading = false;
+  String? _inviteToken;
+  String? _assignedRole;
+  bool _isInvite = false;
 
   final service = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _handleQueryParams();
+  }
+
+  void _handleQueryParams() {
+    // We use Uri.base to get the query parameters from the URL
+    final params = Uri.base.queryParameters;
+    if (params['invite'] == 'true') {
+      setState(() {
+        _isInvite = true;
+        _inviteToken = params['token'];
+        _assignedRole = params['role'];
+        if (params['email'] != null) {
+          emailController.text = params['email']!;
+        }
+      });
+    }
+  }
 
   Future<void> signUp() async {
     if (nameController.text.trim().isEmpty ||
@@ -49,33 +73,61 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
     setState(() => loading = true);
 
     try {
+      // 1. If it's an invite, validate the token first
+      if (_isInvite && _inviteToken != null) {
+        final inviteDoc = await FirebaseFirestore.instance
+            .collection('pending_team_invites')
+            .doc(_inviteToken)
+            .get();
+
+        if (!inviteDoc.exists) {
+          throw Exception("Invalid or expired invitation link.");
+        }
+
+        final data = inviteDoc.data()!;
+        final expiresAt = (data['expiresAt'] as Timestamp).toDate();
+        if (DateTime.now().isAfter(expiresAt)) {
+          throw Exception("Invitation link has expired.");
+        }
+        
+        // Ensure email matches
+        if (data['email'].toString().toLowerCase() != emailController.text.trim().toLowerCase()) {
+          throw Exception("Email does not match invitation.");
+        }
+      }
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+      // 2. Perform Sign Up
       await service.signUp(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
         name: nameController.text.trim(),
         phone: phoneController.text.trim(),
+        role: _assignedRole ?? 'MARKETING', // Use assigned role if invite
         authProvider: authProvider,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created successfully!")),
-      );
+      // 3. If invite, clean up the token
+      if (_isInvite && _inviteToken != null) {
+        await FirebaseFirestore.instance
+            .collection('pending_team_invites')
+            .doc(_inviteToken)
+            .delete();
+      }
 
-      // Navigate back or to home?
-      // Since saving login data usually triggers a state change in main.dart if listening..
-      // But here we might just want to pop back to login or let main handle it.
-      // If we are already logged in via provider, main.dart -> RolesPage.
-      // Navigator.pop might take us back to LoginScreen which is now redundant.
-      // Let's just pop, and main.dart checks auth state.
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account created successfully!")),
+        );
         Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Registration failed: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Registration failed: $e")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => loading = false);

@@ -13,6 +13,36 @@ import 'VisitDetails.dart';
 import 'shared_user_note.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class ServiceOrder {
+  String item; // e.g. "BOT", "MOBILE"
+  String description;
+  String status; // "Order Placed", "Confirmed", "Shipped", "Resolved"
+  DateTime? createdAt;
+
+  ServiceOrder({
+    required this.item,
+    required this.description,
+    this.status = "Order Placed",
+    this.createdAt,
+  });
+
+  factory ServiceOrder.fromJson(Map<String, dynamic> json) {
+    return ServiceOrder(
+      item: json["item"] ?? "",
+      description: json["description"] ?? "",
+      status: json["status"] ?? "Order Placed",
+      createdAt: json["createdAt"] != null ? DateTime.parse(json["createdAt"].toString()) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        "item": item,
+        "description": description,
+        "status": status,
+        "createdAt": createdAt?.toIso8601String(),
+      };
+}
+
 class SchoolVisit {
   String? id;
   String createdByUserId;
@@ -48,6 +78,7 @@ class SchoolVisit {
 
   Map<String, String> sharedUsers;
   List<SharedUserNote> sharedNotes;
+  List<ServiceOrder> serviceOrders;
 
   SchoolVisit({
     this.id,
@@ -77,8 +108,10 @@ class SchoolVisit {
     List<String>? installationIssues,
     Map<String, String>? sharedUsers,
     List<SharedUserNote>? sharedNotes,
+    List<ServiceOrder>? serviceOrders,
   })  : sharedUsers = sharedUsers ?? {},
         sharedNotes = sharedNotes ?? [],
+        serviceOrders = serviceOrders ?? [],
         itemsTaught = itemsTaught ?? [],
         installationIssues = installationIssues ?? [];
   SchoolVisit copyWith({
@@ -111,6 +144,7 @@ class SchoolVisit {
       installationChecklist: installationChecklist,
       itemsTaught: itemsTaught,
       installationIssues: installationIssues,
+      serviceOrders: serviceOrders,
     );
   }
 
@@ -149,6 +183,10 @@ class SchoolVisit {
           {},
       sharedNotes: (json["sharedNotes"] as List?)
               ?.map((e) => SharedUserNote.fromJson(e))
+              .toList() ??
+          [],
+      serviceOrders: (json["serviceOrders"] as List?)
+              ?.map((e) => ServiceOrder.fromJson(e))
               .toList() ??
           [],
       labInformation: LabInformation.fromJson(json["labInformation"]),
@@ -194,6 +232,7 @@ class SchoolVisit {
       "installationIssues": installationIssues,
       "sharedUsers": sharedUsers,
       "sharedNotes": sharedNotes.map((e) => e.toJson()).toList(),
+      "serviceOrders": serviceOrders.map((e) => e.toJson()).toList(),
       "createdAt": createdAt?.toIso8601String(),
       "updatedAt": updatedAt?.toIso8601String(),
     };

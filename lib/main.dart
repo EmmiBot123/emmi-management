@@ -1,5 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:qubiq_os/firebase_options.dart';
+import 'firebase_options.dart';
 import 'package:qubiq_os/Providers/Product/ProductProvider.dart';
 import 'package:qubiq_os/Providers/BillProvider.dart';
 import 'package:qubiq_os/Providers/Qubiq/QubiqProvider.dart';

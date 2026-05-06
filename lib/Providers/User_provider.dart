@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 
 import '../Model/User_model.dart';
 import '../Resources/api_endpoints.dart';
@@ -256,6 +257,94 @@ class UserProvider extends ChangeNotifier {
       notifyListeners();
 
       return "Error: ${response.body}";
+    }
+  }
+  
+  /// 📨 Send a Team Invitation Link (New Flow)
+  Future<String> sendTeamInvite({
+    required String name,
+    required String email,
+    required String role,
+    required String adminId,
+    required String adminName,
+  }) async {
+    try {
+      isLoadingAdd = true;
+      notifyListeners();
+
+      // 1. Generate a unique token
+      final String token = _generateRandomToken(32);
+
+      // 2. Store in 'pending_team_invites'
+      final inviteData = {
+        'token': token,
+        'email': email.trim(),
+        'name': name.trim(),
+        'role': role,
+        'invitedBy': adminName,
+        'invitedById': adminId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
+      };
+
+      await FirebaseFirestore.instance.collection('pending_team_invites').doc(token).set(inviteData);
+
+      // 3. Construct the link
+      const String baseUrl = "https://emmi-management.netlify.app";
+      final String inviteLink = "$baseUrl/#/signup?invite=true&token=$token&email=${Uri.encodeComponent(email)}&role=$role";
+
+      // 4. Send Email via EmailJS
+      await _sendInviteEmail(
+        toEmail: email.trim(),
+        name: name.trim(),
+        inviteLink: inviteLink,
+        role: role,
+      );
+
+      return "Invitation sent successfully to $email";
+    } catch (e) {
+      return "Failed to send invitation: $e";
+    } finally {
+      isLoadingAdd = false;
+      notifyListeners();
+    }
+  }
+
+  String _generateRandomToken(int length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rnd = Random();
+    return String.fromCharCodes(Iterable.generate(
+        length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+  }
+
+  Future<void> _sendInviteEmail({
+    required String toEmail,
+    required String name,
+    required String inviteLink,
+    required String role,
+  }) async {
+    const String serviceId = "service_bfu9is8";
+    const String templateId = "template_h9apqoj"; // Reusing the template, but with role as 'school_id'
+    const String publicKey = "25m02sQQ9YzU3GnLY";
+
+    try {
+      await http.post(
+        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'service_id': serviceId,
+          'template_id': templateId,
+          'user_id': publicKey,
+          'template_params': {
+            'email': toEmail,
+            'name': name,
+            'setup_link': inviteLink, // The template uses {{setup_link}}
+            'school_id': "Team: $role", // Overloading school_id field for context
+          }
+        }),
+      );
+    } catch (e) {
+      debugPrint("❌ Error sending invite email: $e");
     }
   }
 

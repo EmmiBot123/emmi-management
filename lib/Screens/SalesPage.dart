@@ -8,6 +8,7 @@ import 'markerting/admin_to_marketing.dart';
 import 'markerting/marketing_page.dart';
 import 'TeleMarketing/TeleMarketing.dart';
 import 'TeleMarketing/admin_to_telemarketing.dart';
+import 'markerting/sales_dashboard.dart';
 
 class SalesPage extends StatefulWidget {
   const SalesPage({super.key});
@@ -63,14 +64,14 @@ class _SalesPageState extends State<SalesPage>
 
     if (_tabIndex == 0) {
       if (userRole == "MARKETING") {
-        return SchoolVisitListPage(userId: id, name: name, role: userRole);
+        return const SalesDashboard();
       } else if (userRole == "SUPER_ADMIN") {
         return const AdminToMarketing();
       }
       return const MarketingPage();
     } else {
       if (userRole == "TELE_MARKETING") {
-        return SchoolVisitListPage(userId: id, name: name, role: userRole);
+        return const SalesDashboard();
       } else if (userRole == "SUPER_ADMIN") {
         return const AdminToTelemarketing();
       }
@@ -87,12 +88,10 @@ class _SalesPageState extends State<SalesPage>
 
     // Individual role users bypass the toggle
     if (userRole == "MARKETING") {
-      return SchoolVisitListPage(
-          userId: auth.userId!, name: auth.name!, role: userRole);
+      return const SalesDashboard();
     }
     if (userRole == "TELE_MARKETING") {
-      return SchoolVisitListPage(
-          userId: auth.userId!, name: auth.name!, role: userRole);
+      return const SalesDashboard();
     }
 
     final prov = context.watch<UserProvider>();

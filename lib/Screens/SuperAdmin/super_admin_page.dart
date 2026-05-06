@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../Model/User_model.dart';
+import '../../Model/Marketing/school_visit_model.dart';
 import '../../Providers/AuthProvider.dart';
 import '../../Repository/school_visit_repository.dart';
 import '../../Repository/Support/support_repository.dart';
@@ -12,6 +13,8 @@ import 'package:qubiq_os/Repository/school_repository.dart';
 import '../Testing/testing_feedback_list_page.dart';
 import '../Support/support_ticket_list_page.dart';
 import 'ProductManagementPage/ProductManagementPage.dart';
+import 'hardware_orders_page.dart';
+import '../UserManagementPage.dart';
 
 // ─── Color Palette ───
 class _Palette {
@@ -47,6 +50,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   int _resolvedTickets = 0;
   int _totalFeedback = 0;
   int _totalTeamMembers = 0;
+  int _pendingHardwareOrders = 0;
   List<UserModel> _teamMembers = [];
 
   // --- Platform Stats ---
@@ -60,6 +64,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   Map<String, dynamic> _schoolStats = {};
   bool _isSchoolLoading = false;
   List<Map<String, dynamic>> _allSchools = [];
+  List<Map<String, dynamic>> _signedMissions = [];
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -100,6 +105,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         _fetchTeamMetrics(),
         _fetchPlatformStats(),
         _fetchSchools(),
+        _fetchHardwareOrderMetrics(),
       ]);
     } catch (e) {
       debugPrint("Dashboard metrics error: $e");
@@ -177,13 +183,82 @@ class _SuperAdminPageState extends State<SuperAdminPage>
 
   Future<void> _fetchSchools() async {
     try {
-      final repo = SchoolRepository();
-      final schools = await repo.getAllSchools();
+      final schoolRepo = SchoolRepository();
+      final visitRepo = SchoolVisitRepository();
+      
+      final results = await Future.wait([
+        schoolRepo.getAllSchools(),
+        visitRepo.getPaymentVisits(),
+      ]);
+
+      final List<Map<String, dynamic>> schools = results[0] as List<Map<String, dynamic>>;
+      final List<dynamic> visits = results[1] as List<dynamic>;
+
+      // 1. Process all schools for the Performance Dropdown
+      // Merge official schools with schools from missions to catch those added by installation team
+      final Map<String, Map<String, dynamic>> masterSchoolMap = {};
+      
+      for (var s in schools) {
+        final id = s['id'] ?? s['schoolId'];
+        if (id != null) masterSchoolMap[id] = s;
+      }
+      
+      for (var v in visits) {
+        final visit = v as SchoolVisit;
+        // Only include schools from missions if they are marked as CLOSED_WON
+        if (visit.visitDetails.status == "CLOSED_WON") {
+          final id = visit.id;
+          if (id != null && !masterSchoolMap.containsKey(id)) {
+            masterSchoolMap[id] = {
+              'id': id,
+              'schoolId': id,
+              'name': visit.schoolProfile.name,
+              'schoolCode': visit.schoolCode,
+            };
+          }
+        }
+      }
+
       setState(() {
-        _allSchools = schools;
+        _allSchools = masterSchoolMap.values.toList();
+        _allSchools.sort((a, b) => (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()));
+      });
+
+      // 2. Process only signed-off missions for the Sign-offs Portal
+      final signedOffMissions = visits.where((v) {
+        final visit = v as SchoolVisit;
+        return visit.shippingDetails.signatureUrl != null && 
+               visit.shippingDetails.signatureUrl!.isNotEmpty;
+      }).map<Map<String, dynamic>>((v) {
+        final visit = v as SchoolVisit;
+        return {
+          'id': visit.id,
+          'name': visit.schoolProfile.name,
+          'handoverName': visit.shippingDetails.handoverName,
+          'handoverPhone': visit.shippingDetails.handoverPhone,
+          'signatureUrl': visit.shippingDetails.signatureUrl,
+        };
+      }).toList();
+
+      setState(() {
+        _signedMissions = signedOffMissions;
       });
     } catch (e) {
-      debugPrint("Schools fetch error: $e");
+      debugPrint("Missions fetch error: $e");
+    }
+  }
+
+  Future<void> _fetchHardwareOrderMetrics() async {
+    try {
+      final repo = SchoolVisitRepository();
+      final visits = await repo.getPaymentVisits();
+      int count = 0;
+      for (var v in visits) {
+        count += v.serviceOrders.where((o) => o.status != "Resolved").length;
+      }
+      _pendingHardwareOrders = count;
+    } catch (e) {
+      debugPrint("Hardware order metrics error: $e");
     }
   }
 
@@ -358,9 +433,10 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.35),
+            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
@@ -377,7 +453,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -389,7 +465,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -403,7 +479,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                     Text(
                       greeting,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         letterSpacing: 0.5,
@@ -424,10 +500,10 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Row(
@@ -460,7 +536,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                           Text(
                             "EMMI Console • Live",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                               letterSpacing: 0.8,
@@ -478,10 +554,10 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Row(
@@ -493,7 +569,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                       Text(
                         "Logout",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -511,7 +587,6 @@ class _SuperAdminPageState extends State<SuperAdminPage>
 
   // ═══════════════════ METRIC STRIP ═══════════════════
   Widget _buildMetricStrip(bool isWide, bool isMedium) {
-    final crossAxisCount = isWide ? 3 : (isMedium ? 3 : 2);
 
     final metrics = [
       _MetricData(
@@ -535,16 +610,24 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         _Palette.info,
         "active",
       ),
+      _MetricData(
+        "Hardware Orders",
+        _pendingHardwareOrders,
+        Icons.build_circle_outlined,
+        _Palette.accentAlt,
+        "pending",
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HardwareOrdersPage())),
+      ),
     ];
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
+        crossAxisCount: isWide ? 4 : (isMedium ? 2 : 2),
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: isWide ? 2.2 : (isMedium ? 2.0 : 1.6),
+        childAspectRatio: isWide ? 1.6 : (isMedium ? 1.8 : 1.6),
       ),
       itemCount: metrics.length,
       itemBuilder: (context, i) => _buildGlassMetricCard(metrics[i], i),
@@ -562,74 +645,76 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           child: Opacity(opacity: value, child: child),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: _Palette.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: data.color.withOpacity(0.15),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: data.color.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+      child: InkWell(
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _Palette.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: data.color.withValues(alpha: 0.25),
+              width: 1.5,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: data.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(data.icon, size: 18, color: data.color),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: data.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    data.badge,
-                    style: TextStyle(
-                      color: data.color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _AnimatedCounter(
-              value: data.value,
-              color: _Palette.textPrimary,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              data.title,
-              style: const TextStyle(
-                color: _Palette.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                letterSpacing: 0.3,
+            boxShadow: [
+              BoxShadow(
+                color: data.color.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: data.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(data.icon, color: data.color, size: 20),
+                  ),
+                  _buildMetricBadge(data.badge, data.color),
+                ],
+              ),
+              const Spacer(),
+              _AnimatedCounter(value: data.value, color: Colors.white, fontSize: 28),
+              const SizedBox(height: 4),
+              Text(
+                data.title.toUpperCase(),
+                style: const TextStyle(
+                  color: _Palette.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -675,7 +760,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _Palette.info.withOpacity(0.1),
+                  color: _Palette.info.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.confirmation_number,
@@ -701,7 +786,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: _Palette.accent.withOpacity(0.1),
+                    color: _Palette.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -780,7 +865,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _Palette.accent.withOpacity(0.4),
+                                  color: _Palette.accent.withValues(alpha: 0.4),
                                   blurRadius: 8,
                                 ),
                               ],
@@ -841,7 +926,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _Palette.danger.withOpacity(0.1),
+                  color: _Palette.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.bug_report,
@@ -941,6 +1026,13 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                   MaterialPageRoute(builder: (_) => const ProductManagementPage())),
             ),
             _buildActionCard(
+              title: "Sign-offs",
+              subtitle: "${_signedMissions.length} Completed",
+              icon: Icons.verified_user_rounded,
+              color: _Palette.accent,
+              onTap: () => _showSignOffsModal(context),
+            ),
+            _buildActionCard(
               title: "Feedback",
               subtitle: "$_totalFeedback reports",
               icon: Icons.rate_review,
@@ -974,8 +1066,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        splashColor: color.withOpacity(0.08),
-        highlightColor: color.withOpacity(0.04),
+        splashColor: color.withValues(alpha: 0.08),
+        highlightColor: color.withValues(alpha: 0.04),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
@@ -988,7 +1080,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, size: 20, color: color),
@@ -1051,7 +1143,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _Palette.info.withOpacity(0.1),
+                  color: _Palette.info.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.people_alt,
@@ -1067,19 +1159,30 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 ),
               ),
               const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _Palette.surfaceLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  "${_teamMembers.length} members",
-                  style: const TextStyle(
-                    color: _Palette.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+              InkWell(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const UserManagementPage())),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _Palette.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "${_teamMembers.length} members",
+                        style: const TextStyle(
+                          color: _Palette.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_ios, size: 10, color: _Palette.accent),
+                    ],
                   ),
                 ),
               ),
@@ -1128,7 +1231,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: roleColor.withOpacity(0.12),
+              color: roleColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
@@ -1176,7 +1279,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: roleColor.withOpacity(0.1),
+              color: roleColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -1198,7 +1301,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF6B6B).withOpacity(0.08),
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.delete_outline,
@@ -1286,7 +1389,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       decoration: BoxDecoration(
         color: _Palette.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1380,6 +1483,250 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       ],
     );
   }
+
+  void _showSignOffsModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: _Palette.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _Palette.surfaceLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_user_rounded, color: _Palette.accentAlt, size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Installation Sign-offs",
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white54),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: _Palette.surfaceLight),
+              Expanded(
+                child: _signedMissions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.history_edu_rounded, size: 64, color: _Palette.textMuted.withValues(alpha: 0.5)),
+                            const SizedBox(height: 16),
+                            const Text("No signed missions yet", style: TextStyle(color: _Palette.textSecondary)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(24),
+                        itemCount: _signedMissions.length,
+                        itemBuilder: (context, i) {
+                          final mission = _signedMissions[i];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: _Palette.surface,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: _Palette.surfaceLight),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            mission['name'] ?? "Unknown School",
+                                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                          ),
+                                          Text(
+                                            "ID: ${mission['id']?.toString().substring((mission['id']?.toString().length ?? 4) - 4) ?? '0000'}",
+                                            style: const TextStyle(color: _Palette.textSecondary, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    _buildInfoBadge("COMPLETED", _Palette.success),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _contactDetail(Icons.person, "Signee", mission['handoverName'] ?? "N/A"),
+                                    ),
+                                    Expanded(
+                                      child: _contactDetail(Icons.phone, "Contact", mission['handoverPhone'] ?? "N/A"),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                const Text("Digital Signature", style: TextStyle(color: _Palette.textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: double.infinity,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: _Palette.surfaceLight),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.network(
+                                      mission['signatureUrl'] ?? "",
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (c, e, s) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _contactDetail(IconData icon, String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 10, color: _Palette.accentAlt),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: _Palette.textMuted, fontSize: 10)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildAllSchoolsHeader() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 14),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_rounded, color: _Palette.accent, size: 18),
+          const SizedBox(width: 8),
+          const Text(
+            "Installation Sign-offs & Directory",
+            style: TextStyle(
+              color: _Palette.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptySchoolsPlaceholder() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _Palette.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _Palette.surfaceLight, width: 1.5),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.school_outlined, color: _Palette.textMuted, size: 32),
+          SizedBox(height: 12),
+          Text("No missions found in log",
+              style: TextStyle(color: _Palette.textSecondary, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  void _viewSignature(BuildContext context, String url, String schoolName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _Palette.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Handover Signature - $schoolName", 
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Image.network(
+                url, 
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CLOSE", style: TextStyle(color: _Palette.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ═══════════════════ ANIMATED COUNTER ═══════════════════
@@ -1422,6 +1769,7 @@ class _MetricData {
   final IconData icon;
   final Color color;
   final String badge;
+  final VoidCallback? onTap;
 
-  _MetricData(this.title, this.value, this.icon, this.color, this.badge);
+  _MetricData(this.title, this.value, this.icon, this.color, this.badge, {this.onTap});
 }

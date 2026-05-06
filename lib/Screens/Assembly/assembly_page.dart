@@ -141,8 +141,10 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
     if (ok) {
       existingAssignment = assignment;
       serialSaved = true;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Saved")));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text("Saved")));
+      }
       setState(() {});
     }
   }
@@ -186,7 +188,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 28, color: color),
@@ -250,7 +252,7 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
             childAspectRatio: 1.1,
             children: [
               sectionGridBox("Photos", Icons.photo_outlined, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => PhotosPage(uploadedUrls: uploadedUrls)));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PhotosPage(visit: widget.visit)));
               }, Colors.blue),
               sectionGridBox("School Info", Icons.school_outlined, () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => SchoolInfoPage(
@@ -310,9 +312,9 @@ class _VisitDetailsPageState extends State<VisitDetailsPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.green.withOpacity(0.3)),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
             ),
             child: const Row(
               children: [

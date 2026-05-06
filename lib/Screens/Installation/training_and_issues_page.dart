@@ -81,74 +81,100 @@ class _TrainingAndIssuesPageState extends State<TrainingAndIssuesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        title: const Text("Training & Issues"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.surfaceLight),
-            ),
-            child: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 16),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          if (_isSaving)
-            const Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))))
-          else
-            IconButton(icon: const Icon(Icons.done_all, color: AppColors.accent), onPressed: _saveData),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+      body: Stack(
         children: [
-          // ── Training Checklist ──
-          _buildSectionHeader("TRAINING CURRICULUM", "Items taught to teachers"),
-          const SizedBox(height: 16),
-          _buildInputRow(_itemCtrl, "Add topic (e.g. Basic Bot Ops)", _addItemTaught, AppColors.accent),
-          const SizedBox(height: 20),
-          if (itemsTaught.isEmpty)
-            _buildEmptyState("No training items recorded yet.")
-          else
-            Column(
-              children: itemsTaught.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final item = entry.value;
-                return _buildChecklistItem(item, () {
-                  setState(() => itemsTaught.removeAt(idx));
-                });
-              }).toList(),
-            ),
+          // ── Background Glow Blobs ──
+          Positioned(top: -100, right: -100, child: _buildGlowBlob(AppColors.accent.withOpacity(0.15), 300)),
+          Positioned(bottom: -50, left: -50, child: _buildGlowBlob(Colors.redAccent.withOpacity(0.1), 250)),
 
-          const SizedBox(height: 48),
-          const Divider(color: AppColors.surfaceLight),
-          const SizedBox(height: 32),
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                backgroundColor: AppColors.bg,
+                elevation: 0,
+                pinned: true,
+                centerTitle: true,
+                leading: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.surfaceLight),
+                    ),
+                    child: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 16),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Text(
+                  "TRAINING & ISSUES",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                    shadows: [
+                      Shadow(color: AppColors.accent.withOpacity(0.5), blurRadius: 10),
+                    ],
+                  ),
+                ),
+                actions: [
+                  if (_isSaving)
+                    const Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))))
+                  else
+                    IconButton(icon: const Icon(Icons.done_all, color: AppColors.accent), onPressed: _saveData),
+                ],
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(24),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    // ── Training Checklist ──
+                    _buildSectionHeader("TRAINING CURRICULUM", "Items taught to teachers"),
+                    const SizedBox(height: 16),
+                    _buildInputRow(_itemCtrl, "Add topic (e.g. Basic Bot Ops)", _addItemTaught, AppColors.accent),
+                    const SizedBox(height: 20),
+                    if (itemsTaught.isEmpty)
+                      _buildEmptyState("No training items recorded yet.")
+                    else
+                      Column(
+                        children: itemsTaught.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final item = entry.value;
+                          return _buildChecklistItem(item, () {
+                            setState(() => itemsTaught.removeAt(idx));
+                          });
+                        }).toList(),
+                      ),
 
-          // ── Issues Reporting ──
-          _buildSectionHeader("TECHNICAL ISSUES", "Hardware or software problems reported", color: Colors.redAccent),
-          const SizedBox(height: 16),
-          _buildInputRow(_issueCtrl, "Describe issue (e.g. Broken motor)", _addIssue, Colors.redAccent),
-          const SizedBox(height: 20),
-          if (installationIssues.isEmpty)
-            _buildEmptyState("No issues reported.")
-          else
-            Column(
-              children: installationIssues.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final issue = entry.value;
-                return _buildIssueItem(issue, () {
-                  setState(() => installationIssues.removeAt(idx));
-                });
-              }).toList(),
-            ),
-          
-          const SizedBox(height: 100),
+                    const SizedBox(height: 48),
+                    const Divider(color: AppColors.surfaceLight),
+                    const SizedBox(height: 32),
+
+                    // ── Issues Reporting ──
+                    _buildSectionHeader("TECHNICAL ISSUES", "Hardware or software problems reported", color: Colors.redAccent),
+                    const SizedBox(height: 16),
+                    _buildInputRow(_issueCtrl, "Describe issue (e.g. Broken motor)", _addIssue, Colors.redAccent),
+                    const SizedBox(height: 20),
+                    if (installationIssues.isEmpty)
+                      _buildEmptyState("No issues reported.")
+                    else
+                      Column(
+                        children: installationIssues.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final issue = entry.value;
+                          return _buildIssueItem(issue, () {
+                            setState(() => installationIssues.removeAt(idx));
+                          });
+                        }).toList(),
+                      ),
+                    
+                    const SizedBox(height: 120),
+                  ]),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -157,15 +183,36 @@ class _TrainingAndIssuesPageState extends State<TrainingAndIssuesPage> {
           color: AppColors.bg,
           border: Border(top: BorderSide(color: AppColors.surfaceLight)),
         ),
-        child: ElevatedButton(
-          onPressed: _isSaving ? null : _saveData,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accent,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(color: AppColors.accent.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
+            ],
           ),
-          child: const Text("SAVE TRAINING LOG", style: TextStyle(fontWeight: FontWeight.bold)),
+          child: ElevatedButton(
+            onPressed: _isSaving ? null : _saveData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              elevation: 0,
+            ),
+            child: const Text("SAVE TRAINING LOG", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGlowBlob(Color color, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: color, blurRadius: 100, spreadRadius: 50)],
       ),
     );
   }
