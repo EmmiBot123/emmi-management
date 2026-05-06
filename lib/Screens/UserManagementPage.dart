@@ -625,7 +625,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  void _submit() {
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
 
@@ -638,95 +638,78 @@ class _AddUserSheetState extends State<_AddUserSheet> {
       return;
     }
 
-    setState(() => _isSaving = true);
-
-    final auth = context.read<AuthProvider>();
-    final msg = await context.read<UserProvider>().sendTeamInvite(
+    // Generate setup link instantly (no async, no Firestore)
+    final link = context.read<UserProvider>().generateSetupLink(
           name: name,
           email: email,
           role: _selectedRole!,
-          adminId: auth.userId!,
-          adminName: auth.name!,
         );
 
-    if (!mounted) return;
-    setState(() => _isSaving = false);
+    // Copy to clipboard immediately
+    Clipboard.setData(ClipboardData(text: link));
 
-    if (msg.startsWith("http")) {
-      widget.onAdded();
-      
-      // Show dialog with the link
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: _C.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Setup Link Generated",
-              style: TextStyle(
-                  color: _C.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Copy this link and send it to the new member:",
-                style: TextStyle(color: _C.textSecondary, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _C.bg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _C.surfaceLight),
-                ),
-                child: SelectableText(
-                  msg,
-                  style: const TextStyle(color: _C.textPrimary, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: msg));
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                  content: const Text("Link copied to clipboard"),
-                  backgroundColor: _C.surface,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              },
-              child: const Text("Copy", style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600)),
+    // Close bottom sheet first
+    Navigator.pop(context);
+    widget.onAdded();
+
+    // Show the link dialog from the parent context
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _C.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: _C.success, size: 22),
+            const SizedBox(width: 10),
+            const Text("Link Copied!",
+                style: TextStyle(
+                    color: _C.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Setup link has been copied to your clipboard. Send it to the new member:",
+              style: TextStyle(color: _C.textSecondary, fontSize: 14),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Done", style: TextStyle(color: _C.textMuted)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _C.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _C.surfaceLight),
+              ),
+              child: SelectableText(
+                link,
+                style: const TextStyle(color: _C.accent, fontSize: 12),
+              ),
             ),
           ],
         ),
-      );
-
-      // Now close the bottom sheet
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: msg.toLowerCase().contains("failed") ? _C.danger : _C.surface,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-
-      if (msg.toLowerCase().contains("successful")) {
-        widget.onAdded();
-        Navigator.pop(context);
-      }
-    }
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: link));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text("Copied again!"),
+                duration: Duration(seconds: 1),
+              ));
+            },
+            child: const Text("Copy Again", style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Done", style: TextStyle(color: _C.textMuted)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String msg) {
@@ -874,7 +857,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _submit,
+                onPressed: _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _C.accent,
                   foregroundColor: Colors.white,
@@ -883,22 +866,20 @@ class _AddUserSheetState extends State<_AddUserSheet> {
                   ),
                   elevation: 0,
                 ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        "Send Invitation Link",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.link, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      "Generate Setup Link",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

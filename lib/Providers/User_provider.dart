@@ -260,48 +260,14 @@ class UserProvider extends ChangeNotifier {
     }
   }
   
-  /// 📨 Send a Team Invitation Link (New Flow)
-  Future<String> sendTeamInvite({
+  /// 📨 Generate a Setup Link for new team members
+  String generateSetupLink({
     required String name,
     required String email,
     required String role,
-    required String adminId,
-    required String adminName,
-  }) async {
-    try {
-      isLoadingAdd = true;
-      notifyListeners();
-
-      // 1. Generate a unique token
-      final String token = _generateRandomToken(32);
-
-      // 2. Store in 'pending_team_invites'
-      final inviteData = {
-        'token': token,
-        'email': email.trim(),
-        'name': name.trim(),
-        'role': role,
-        'invitedBy': adminName,
-        'invitedById': adminId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
-      };
-
-      await FirebaseFirestore.instance.collection('pending_team_invites').doc(token).set(inviteData);
-
-      // 3. Construct the link
-      const String baseUrl = "https://emmi-management.netlify.app";
-      final String inviteLink = "$baseUrl/#/signup?invite=true&token=$token&email=${Uri.encodeComponent(email)}&role=$role";
-
-      // 4. Return the generated link instead of sending an email
-      // per the user's request to manually copy and send the link.
-      return inviteLink;
-    } catch (e) {
-      return "Failed to send invitation: $e";
-    } finally {
-      isLoadingAdd = false;
-      notifyListeners();
-    }
+  }) {
+    const String baseUrl = "https://qubiqos.netlify.app";
+    return "$baseUrl/#/signup?invite=true&name=${Uri.encodeComponent(name)}&email=${Uri.encodeComponent(email)}&role=$role";
   }
 
   String _generateRandomToken(int length) {
