@@ -28,3 +28,14 @@ ios/Flutter/App.framework
 
 # Environment files
 .env
+
+# Root Build Artifacts (managed by CD)
+index.html
+main.dart.js
+flutter.js
+flutter_bootstrap.js
+manifest.json
+favicon.png
+assets/
+canvaskit/
+version.json
