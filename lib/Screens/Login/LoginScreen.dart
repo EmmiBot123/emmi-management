@@ -24,31 +24,6 @@ class _LoginScreenLightState extends State<LoginScreenLight> {
   final passwordController = TextEditingController();
   bool loading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _handleQueryParams();
-  }
-
-  void _handleQueryParams() {
-    // In Flutter Web with Hash strategy, params might be in the fragment
-    Map<String, String> params = Map.from(Uri.base.queryParameters);
-    
-    if (Uri.base.fragment.contains('?')) {
-      final fragmentParts = Uri.base.fragment.split('?');
-      if (fragmentParts.length > 1) {
-        final fragmentParams = Uri.splitQueryString(fragmentParts[1]);
-        params.addAll(fragmentParams);
-      }
-    }
-
-    if (params['email'] != null) {
-      setState(() {
-        emailController.text = Uri.decodeComponent(params['email']!);
-      });
-    }
-  }
-
   Future<void> login() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 

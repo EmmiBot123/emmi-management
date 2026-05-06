@@ -415,7 +415,7 @@ class QubiqProvider extends ChangeNotifier {
       }
 
       // 5. Construct the link
-      const String baseUrl = "https://qubiqos.netlify.app";
+      const String baseUrl = "https://qubiqai.netlify.app";
       final String setupLink = "$baseUrl/#/login?setup=true&token=$token&email=${Uri.encodeComponent(email)}";
 
       // 6. AUTO-SEND EMAIL (EmailJS)
@@ -462,8 +462,8 @@ class QubiqProvider extends ChangeNotifier {
           'template_id': templateId,
           'user_id': publicKey,
           'template_params': {
-            'email': toEmail,
-            'name': schoolName,
+            'email': toEmail, // Matches {{email}} in screenshot
+            'name': schoolName, // Matches {{name}} in screenshot
             'setup_link': setupLink,
             'school_id': schoolId,
           }
