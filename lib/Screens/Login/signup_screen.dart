@@ -39,15 +39,24 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
   }
 
   void _handleQueryParams() {
-    // We use Uri.base to get the query parameters from the URL
-    final params = Uri.base.queryParameters;
+    // In Flutter Web with Hash strategy, params might be in the fragment
+    Map<String, String> params = Map.from(Uri.base.queryParameters);
+    
+    if (Uri.base.fragment.contains('?')) {
+      final fragmentParts = Uri.base.fragment.split('?');
+      if (fragmentParts.length > 1) {
+        final fragmentParams = Uri.splitQueryString(fragmentParts[1]);
+        params.addAll(fragmentParams);
+      }
+    }
+
     if (params['invite'] == 'true') {
       setState(() {
         _isInvite = true;
         _inviteToken = params['token'];
         _assignedRole = params['role'];
         if (params['email'] != null) {
-          emailController.text = params['email']!;
+          emailController.text = Uri.decodeComponent(params['email']!);
         }
       });
     }

@@ -415,7 +415,7 @@ class QubiqProvider extends ChangeNotifier {
       }
 
       // 5. Construct the link
-      const String baseUrl = "https://qubiqai.netlify.app";
+      const String baseUrl = "https://qubiqos.netlify.app";
       final String setupLink = "$baseUrl/#/login?setup=true&token=$token&email=${Uri.encodeComponent(email)}";
 
       // 6. AUTO-SEND EMAIL (EmailJS)
@@ -449,31 +449,49 @@ class QubiqProvider extends ChangeNotifier {
     required String setupLink,
     required String schoolId,
   }) async {
-    const String serviceId = "service_bfu9is8";
-    const String templateId = "template_h9apqoj"; 
-    const String publicKey = "25m02sQQ9YzU3GnLY";
+    // 🔥 TODO: Replace with your actual Resend API Key
+    const String resendApiKey = "re_YXpyP7Ei_4Qwex1ZT334RXXucegRpBrE4";
+
+    final url = Uri.parse('https://api.resend.com/emails');
 
     try {
       final response = await http.post(
-        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
-        headers: {'Content-Type': 'application/json'},
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $resendApiKey',
+        },
         body: jsonEncode({
-          'service_id': serviceId,
-          'template_id': templateId,
-          'user_id': publicKey,
-          'template_params': {
-            'email': toEmail, // Matches {{email}} in screenshot
-            'name': schoolName, // Matches {{name}} in screenshot
-            'setup_link': setupLink,
-            'school_id': schoolId,
-          }
+          'from': 'Emmi Management <onboarding@resend.dev>',
+          'to': [toEmail],
+          'subject': 'Your School Admin Setup - $schoolName',
+          'html': '''
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
+              <div style="background-color: #0984E3; padding: 20px; text-align: center; color: white;">
+                <h1 style="margin: 0; font-size: 20px;">EMMI MANAGEMENT</h1>
+              </div>
+              <div style="padding: 30px; color: #333;">
+                <h2 style="margin-top: 0;">Welcome, $schoolName!</h2>
+                <p>Your school admin account is ready to be set up.</p>
+                <div style="background: #f8f9fa; border-left: 4px solid #0984E3; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 14px; color: #666;">School ID</p>
+                  <p style="margin: 4px 0 0; font-size: 20px; font-weight: bold; color: #333;">$schoolId</p>
+                </div>
+                <p>Click the button below to complete your account setup:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="$setupLink" style="background-color: #0984E3; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Set Up Account</a>
+                </div>
+                <p style="font-size: 12px; color: #999; text-align: center;">If you cannot click the button, copy and paste this link:<br>$setupLink</p>
+              </div>
+            </div>
+          ''',
         }),
       );
 
-      if (response.statusCode == 200) {
-        debugPrint("✅ Setup Email sent successfully to $toEmail");
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("✅ Setup email sent via Resend to $toEmail");
       } else {
-        debugPrint("❌ Failed to send setup email: ${response.statusCode}");
+        debugPrint("❌ Resend Failed: ${response.body}");
       }
     } catch (e) {
       debugPrint("❌ Error sending setup email: $e");

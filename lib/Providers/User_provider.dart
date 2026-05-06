@@ -290,7 +290,7 @@ class UserProvider extends ChangeNotifier {
       await FirebaseFirestore.instance.collection('pending_team_invites').doc(token).set(inviteData);
 
       // 3. Construct the link
-      const String baseUrl = "https://emmi-management.netlify.app";
+      const String baseUrl = "https://qubiqos.netlify.app";
       final String inviteLink = "$baseUrl/#/signup?invite=true&token=$token&email=${Uri.encodeComponent(email)}&role=$role";
 
       // 4. Send Email via EmailJS
@@ -323,28 +323,48 @@ class UserProvider extends ChangeNotifier {
     required String inviteLink,
     required String role,
   }) async {
-    const String serviceId = "service_bfu9is8";
-    const String templateId = "template_h9apqoj"; // Reusing the template, but with role as 'school_id'
-    const String publicKey = "25m02sQQ9YzU3GnLY";
-
+    // 🔥 TODO: Replace with your actual Resend API Key
+    const String resendApiKey = "re_YXpyP7Ei_4Qwex1ZT334RXXucegRpBrE4";
+    
+    final url = Uri.parse('https://api.resend.com/emails');
+    
     try {
-      await http.post(
-        Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'service_id': serviceId,
-          'template_id': templateId,
-          'user_id': publicKey,
-          'template_params': {
-            'email': toEmail,
-            'name': name,
-            'setup_link': inviteLink, // The template uses {{setup_link}}
-            'school_id': "Team: $role", // Overloading school_id field for context
-          }
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $resendApiKey',
+        },
+        body: json.encode({
+          'from': 'Emmi Management <onboarding@resend.dev>',
+          'to': [toEmail],
+          'subject': 'Invitation to join Emmi Management',
+          'html': '''
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
+              <div style="background-color: #0984E3; padding: 20px; text-align: center; color: white;">
+                <h1 style="margin: 0; font-size: 20px;">EMMI MANAGEMENT</h1>
+              </div>
+              <div style="padding: 30px; color: #333;">
+                <h2 style="margin-top: 0;">Hello, $name!</h2>
+                <p>You have been invited to join the team as: <strong>$role</strong></p>
+                <p>Please click the button below to set up your account and get started:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="$inviteLink" style="background-color: #0984E3; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Set Up Account</a>
+                </div>
+                <p style="font-size: 12px; color: #999; text-align: center;">If you cannot click the button, copy and paste this link:<br>$inviteLink</p>
+              </div>
+            </div>
+          ''',
         }),
       );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("✅ Invitation email sent via Resend!");
+      } else {
+        print("❌ Resend Failed: ${response.body}");
+      }
     } catch (e) {
-      debugPrint("❌ Error sending invite email: $e");
+      print("❌ Error sending email: $e");
     }
   }
 
