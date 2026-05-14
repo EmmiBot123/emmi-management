@@ -113,28 +113,6 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
                       ),
                       if (_isServerPC) ...[
                         _textField("Cloud Bucket Name", _bucketNameCtrl),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(child: _textField("Device Prefix", _devicePrefixCtrl)),
-                            const SizedBox(width: 8),
-                            SizedBox(width: 80, child: _textField("Start", _rangeStartCtrl)),
-                            const SizedBox(width: 8),
-                            SizedBox(width: 80, child: _textField("End", _rangeEndCtrl)),
-                          ],
-                        ),
-                        if (_isProvisioningS3)
-                          const LinearProgressIndicator(color: Colors.purpleAccent)
-                        else
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _provisionS3,
-                              icon: const Icon(Icons.cloud_upload_rounded),
-                              label: const Text("Initialize S3 Bucket & Devices"),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),
-                            ),
-                          ),
                       ],
                       if (provider.isLoading)
                         const Padding(
@@ -225,87 +203,7 @@ class _ManageKeysDialogState extends State<ManageKeysDialog> {
     }
   }
 
-  void _provisionS3() async {
-    if (_bucketNameCtrl.text.isEmpty || _devicePrefixCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill Bucket Name and Device Prefix")),
-      );
-      return;
-    }
 
-    setState(() => _isProvisioningS3 = true);
-
-    try {
-      final awsConfig = await KeyPoolRepository.getAwsConfig().first;
-      if (awsConfig['accessKey'] == null || awsConfig['secretKey'] == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("❌ AWS Credentials missing! Set them in Key Pool Station.")),
-          );
-        }
-        return;
-      }
-
-      final bucket = _bucketNameCtrl.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '-');
-      final prefix = _devicePrefixCtrl.text.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-      final start = int.tryParse(_rangeStartCtrl.text) ?? 1;
-      final end = int.tryParse(_rangeEndCtrl.text) ?? 30;
-
-      debugPrint("🚀 Requesting Backend S3 Provisioning for: $bucket");
-
-      final result = await context.read<QubiqProvider>().provisionS3(
-        accessKey: awsConfig['accessKey']!,
-        secretKey: awsConfig['secretKey']!,
-        region: awsConfig['region'] ?? 'us-east-1',
-        bucketName: bucket,
-        devicePrefix: prefix,
-        rangeStart: start,
-        rangeEnd: end,
-      );
-
-      if (mounted) {
-        if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.green.shade800,
-              content: Text("🚀 ${result['message']}")
-            ),
-          );
-        } else {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text("S3 Provisioning Failed"),
-              content: SingleChildScrollView(
-                child: ListBody(
-                  children: [
-                    Text("Error: ${result['error']}"),
-                    if (result['details'] != null) ...[
-                      const SizedBox(height: 10),
-                      Text("Details: ${result['details']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))],
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint("‼️ S3 Provisioning Trigger Failed: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade800,
-            content: Text("❌ System Error: $e"),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProvisioningS3 = false);
-    }
-  }
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;

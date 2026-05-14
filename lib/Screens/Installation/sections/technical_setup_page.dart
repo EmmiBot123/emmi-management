@@ -209,39 +209,6 @@ class _TechnicalSetupPageState extends State<TechnicalSetupPage> {
           if (_isServerPC) ...[
             const SizedBox(height: 32),
             _buildTextField("Bucket Name", _bucketNameCtrl, Icons.storage),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(child: _buildTextField("Device Prefix", _devicePrefixCtrl, Icons.devices)),
-                const SizedBox(width: 16),
-                SizedBox(width: 100, child: _buildTextField("Start", _rangeStartCtrl, null)),
-                const SizedBox(width: 12),
-                SizedBox(width: 100, child: _buildTextField("End", _rangeEndCtrl, null)),
-              ],
-            ),
-            const SizedBox(height: 32),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: Colors.white.withOpacity(0.05),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: ElevatedButton.icon(
-                onPressed: _isProvisioningS3 ? null : _provisionS3,
-                icon: _isProvisioningS3 
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.rocket_launch, size: 20),
-                label: Text(_isProvisioningS3 ? "INITIALIZING..." : "INITIALIZE S3 BUCKET & DEVICES", style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ),
-            ),
           ],
         ],
       ),
@@ -324,33 +291,7 @@ class _TechnicalSetupPageState extends State<TechnicalSetupPage> {
     }
   }
 
-  void _provisionS3() async {
-    if (_bucketNameCtrl.text.isEmpty || _devicePrefixCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bucket Name and Prefix required")));
-      return;
-    }
 
-    setState(() => _isProvisioningS3 = true);
-
-    try {
-      final awsConfig = await KeyPoolRepository.getAwsConfig().first;
-      final result = await context.read<QubiqProvider>().provisionS3(
-        accessKey: awsConfig['accessKey']!,
-        secretKey: awsConfig['secretKey']!,
-        region: awsConfig['region'] ?? 'us-east-1',
-        bucketName: _bucketNameCtrl.text.trim(),
-        devicePrefix: _devicePrefixCtrl.text.trim(),
-        rangeStart: int.parse(_rangeStartCtrl.text),
-        rangeEnd: int.parse(_rangeEndCtrl.text),
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? result['error'])));
-      }
-    } finally {
-      if (mounted) setState(() => _isProvisioningS3 = false);
-    }
-  }
 
   void _saveAll() async {
     if (widget.visit.adminId == null || widget.visit.adminId == 'PENDING_SETUP') {
