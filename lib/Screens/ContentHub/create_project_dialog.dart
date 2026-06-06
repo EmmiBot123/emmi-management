@@ -1,0 +1,636 @@
+import 'dart:ui';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../Model/Project.dart';
+import '../../Model/Course.dart'; // for CustomSection
+
+class CustomSectionState {
+  final TextEditingController titleController;
+  final List<TextEditingController> itemControllers;
+
+  CustomSectionState({required this.titleController, required this.itemControllers});
+
+  void dispose() {
+    titleController.dispose();
+    for (var c in itemControllers) c.dispose();
+  }
+}
+
+class CreateProjectDialog extends StatefulWidget {
+  const CreateProjectDialog({super.key});
+
+  @override
+  State<CreateProjectDialog> createState() => _CreateProjectDialogState();
+}
+
+class _CreateProjectDialogState extends State<CreateProjectDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  // Basic Info
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _githubUrlController = TextEditingController();
+  final _liveUrlController = TextEditingController();
+  String _difficulty = "Beginner";
+  String _status = "Draft";
+
+  // Standard Tags
+  final List<TextEditingController> _tagControllers = [];
+
+  // Custom Sections
+  final List<CustomSectionState> _customSectionStates = [];
+
+  // Scheduling
+  DateTime? _scheduledDate;
+  TimeOfDay? _scheduledTime;
+
+  // Templates
+  List<String> _availableTemplates = [];
+  String? _selectedTemplate;
+
+  final Color _accentColor = const Color(0xFF9333EA);
+
+  @override
+  void initState() {
+    super.initState();
+    _addTag();
+    _loadAvailableTemplates();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _imageUrlController.dispose();
+    _githubUrlController.dispose();
+    _liveUrlController.dispose();
+    for (var c in _tagControllers) c.dispose();
+    for (var s in _customSectionStates) s.dispose();
+    super.dispose();
+  }
+
+  // --- Dynamic Form Actions ---
+
+  void _addTag() => setState(() => _tagControllers.add(TextEditingController()));
+
+  void _addCustomSection() {
+    setState(() {
+      _customSectionStates.add(CustomSectionState(
+        titleController: TextEditingController(),
+        itemControllers: [TextEditingController()],
+      ));
+    });
+  }
+
+  void _addCustomSectionItem(CustomSectionState section) {
+    setState(() {
+      section.itemControllers.add(TextEditingController());
+    });
+  }
+
+  // --- Template Management ---
+
+  Future<void> _loadAvailableTemplates() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith('project_template_')).toList();
+    setState(() {
+      _availableTemplates = keys.map((k) => k.replaceFirst('project_template_', '')).toList();
+    });
+  }
+
+  Future<void> _saveAsTemplate() async {
+    final name = await _showInputDialog("Template Name", "Enter a name for this template");
+    if (name == null || name.isEmpty) return;
+
+    final templateData = {
+      'customSections': _customSectionStates.map((s) => {
+        'title': s.titleController.text,
+        'items': s.itemControllers.map((c) => c.text).toList(),
+      }).toList(),
+      'tagsCount': _tagControllers.length,
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('project_template_$name', jsonEncode(templateData));
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Template '$name' saved!")));
+      _loadAvailableTemplates();
+    }
+  }
+
+  Future<void> _loadTemplate(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    final dataStr = prefs.getString('project_template_$name');
+    if (dataStr == null) return;
+
+    final data = jsonDecode(dataStr);
+    
+    setState(() {
+      // Clear existing custom sections
+      _customSectionStates.clear();
+      
+      // Load custom sections
+      if (data['customSections'] != null) {
+        for (var sec in data['customSections']) {
+          final state = CustomSectionState(
+            titleController: TextEditingController(text: sec['title']),
+            itemControllers: (sec['items'] as List).map((i) => TextEditingController(text: i.toString())).toList(),
+          );
+          if (state.itemControllers.isEmpty) state.itemControllers.add(TextEditingController());
+          _customSectionStates.add(state);
+        }
+      }
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Template '$name' loaded!")));
+    }
+  }
+
+  Future<String?> _showInputDialog(String title, String hint) {
+    final c = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: c,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context, c.text), child: const Text("Save")),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF9333EA),
+              onPrimary: Colors.white,
+              surface: Color(0xFF1E293B),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (date != null && mounted) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: _scheduledTime ?? TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: ThemeData.dark().copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: Color(0xFF9333EA),
+                onPrimary: Colors.white,
+                surface: Color(0xFF1E293B),
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      if (time != null) {
+        setState(() {
+          _scheduledDate = date;
+          _scheduledTime = time;
+        });
+      }
+    }
+  }
+
+  // --- UI Building ---
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            width: 800,
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withOpacity(0.85),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.1), width: 1.5),
+            ),
+            child: Column(
+              children: [
+                _buildHeader(),
+                const Divider(height: 1, color: Colors.white10),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    physics: const BouncingScrollPhysics(),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle("Basic Information", Icons.rocket_launch),
+                          const SizedBox(height: 16),
+                          _buildTextField("Project Title", _titleController, isRequired: true),
+                          _buildTextField("Description", _descController, maxLines: 3, isRequired: true),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: DropdownButtonFormField<String>(
+                                    value: _difficulty,
+                                    dropdownColor: const Color(0xFF1E293B),
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: _inputDecoration("Difficulty Level"),
+                                    items: ["Beginner", "Intermediate", "Advanced"]
+                                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                                        .toList(),
+                                    onChanged: (v) => setState(() => _difficulty = v!),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildTextField("Cover Image URL", _imageUrlController)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _status,
+                                  dropdownColor: const Color(0xFF1E293B),
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _inputDecoration("Status"),
+                                  items: ["Draft", "Published", "Archived", "Scheduled"]
+                                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                                      .toList(),
+                                  onChanged: (v) => setState(() => _status = v!),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              const Spacer(),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+                          if (_status == "Scheduled")
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: InkWell(
+                                onTap: _selectDateTime,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: _accentColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: _accentColor.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.calendar_month, color: _accentColor),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        _scheduledDate != null && _scheduledTime != null
+                                            ? "Scheduled for: ${_scheduledDate!.toLocal().toString().split(' ')[0]} at ${_scheduledTime!.format(context)}"
+                                            : "Select Publish Date & Time",
+                                        style: const TextStyle(color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(height: 16),
+                          _buildSectionTitle("Links", Icons.link),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(child: _buildTextField("GitHub URL", _githubUrlController)),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildTextField("Live Demo URL", _liveUrlController)),
+                            ],
+                          ),
+
+                          const SizedBox(height: 32),
+                          _buildSectionTitleWithAdd("Tags / Technologies", Icons.local_offer_outlined, _addTag),
+                          ..._buildDynamicList(_tagControllers, "Tag"),
+
+                          const SizedBox(height: 32),
+                          _buildSectionTitleWithAdd("Custom Sections", Icons.dashboard_customize_outlined, _addCustomSection),
+                          const SizedBox(height: 8),
+                          Text("Add custom sections like 'Architecture', 'How to Run', or 'Challenges'.", style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
+                          const SizedBox(height: 16),
+                          ..._buildCustomSections(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1, color: Colors.white10),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: _accentColor.withOpacity(0.05),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: _accentColor.withOpacity(0.2), shape: BoxShape.circle),
+            child: Icon(Icons.rocket_launch_rounded, color: _accentColor, size: 24),
+          ),
+          const SizedBox(width: 16),
+          const Text("Create Advanced Project", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          if (_availableTemplates.isNotEmpty)
+            DropdownButton<String>(
+              hint: Text("Load Template", style: TextStyle(color: Colors.white.withOpacity(0.7))),
+              value: _selectedTemplate,
+              dropdownColor: const Color(0xFF1E293B),
+              style: const TextStyle(color: Colors.white),
+              underline: const SizedBox(),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+              items: _availableTemplates.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => _selectedTemplate = v);
+                  _loadTemplate(v);
+                }
+              },
+            ),
+          const SizedBox(width: 12),
+          TextButton.icon(
+            onPressed: _saveAsTemplate,
+            icon: const Icon(Icons.save_rounded, size: 18),
+            label: const Text("Save Template"),
+            style: TextButton.styleFrom(foregroundColor: _accentColor),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white54),
+            onPressed: () => Navigator.pop(context),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            child: const Text("Cancel"),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                if (_status == "Scheduled" && (_scheduledDate == null || _scheduledTime == null)) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a date and time for scheduling.")));
+                  return;
+                }
+
+                DateTime? finalPublishDate;
+                if (_status == "Scheduled" && _scheduledDate != null && _scheduledTime != null) {
+                  finalPublishDate = DateTime(
+                    _scheduledDate!.year,
+                    _scheduledDate!.month,
+                    _scheduledDate!.day,
+                    _scheduledTime!.hour,
+                    _scheduledTime!.minute,
+                  );
+                }
+
+                final project = Project(
+                  id: '',
+                  title: _titleController.text,
+                  description: _descController.text,
+                  difficulty: _difficulty,
+                  status: _status,
+                  scheduledPublishDate: finalPublishDate,
+                  imageUrl: _imageUrlController.text,
+                  githubUrl: _githubUrlController.text,
+                  liveUrl: _liveUrlController.text,
+                  tags: _tagControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+                  customSections: _customSectionStates.map((s) => CustomSection(
+                    title: s.titleController.text,
+                    items: s.itemControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+                  )).toList(),
+                );
+                Navigator.pop(context, project);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _accentColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Create Project", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: _accentColor, size: 20),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitleWithAdd(String title, IconData icon, VoidCallback onAdd) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildSectionTitle(title, icon),
+        InkWell(
+          onTap: onAdd,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: _accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _accentColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add, size: 16, color: _accentColor),
+                const SizedBox(width: 4),
+                Text("Add", style: TextStyle(color: _accentColor, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {bool isRequired = false, int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        style: const TextStyle(color: Colors.white),
+        decoration: _inputDecoration(label),
+        validator: isRequired ? (v) => v == null || v.isEmpty ? "Required field" : null : null,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+      filled: true,
+      fillColor: const Color(0xFF1E293B).withOpacity(0.5),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.05))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _accentColor)),
+    );
+  }
+
+  List<Widget> _buildDynamicList(List<TextEditingController> controllers, String hint) {
+    return controllers.asMap().entries.map((entry) {
+      int idx = entry.key;
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: entry.value,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration("$hint ${idx + 1}"),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.remove_circle_outline, color: Colors.red.shade400),
+              onPressed: () => setState(() => controllers.removeAt(idx)),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildCustomSections() {
+    return _customSectionStates.asMap().entries.map((entry) {
+      int idx = entry.key;
+      final state = entry.value;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [_accentColor.withOpacity(0.05), Colors.transparent]),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _accentColor.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: state.titleController,
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      hintText: "Section Title (e.g. Architecture)",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                  onPressed: () => setState(() => _customSectionStates.removeAt(idx)),
+                ),
+              ],
+            ),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 8),
+            ...state.itemControllers.asMap().entries.map((itemEntry) {
+              int itemIdx = itemEntry.key;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, size: 6, color: _accentColor),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: itemEntry.value,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: "Item ${itemIdx + 1}",
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.white.withOpacity(0.3), size: 18),
+                      onPressed: () => setState(() => state.itemControllers.removeAt(itemIdx)),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            TextButton.icon(
+              onPressed: () => _addCustomSectionItem(state),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text("Add Item"),
+              style: TextButton.styleFrom(foregroundColor: _accentColor),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+}

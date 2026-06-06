@@ -11,7 +11,6 @@ import 'create_admin_dialog.dart';
 import 'manage_keys_dialog.dart';
 import 'school_detail_dialog.dart';
 import 'search_school_dialog.dart';
-import 'course_list_tab.dart';
 import '../Ads/ads_page.dart';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/Testing/feedback_model.dart';
@@ -113,7 +112,6 @@ class _QubiqPageState extends State<QubiqPage> {
                     physics: const BouncingScrollPhysics(),
                     children: [
                       _buildSchoolsTab(provider),
-                      const CourseListTab(),
                       const AdsPage(),
                       const _TestingReportsSection(),
                     ],
@@ -154,11 +152,9 @@ class _QubiqPageState extends State<QubiqPage> {
                       children: [
                         _buildDockItem(0, Icons.business_rounded, "Schools"),
                         const SizedBox(width: 4),
-                        _buildDockItem(1, Icons.school_rounded, "Courses"),
+                        _buildDockItem(1, Icons.video_library_rounded, "Ads"),
                         const SizedBox(width: 4),
-                        _buildDockItem(2, Icons.video_library_rounded, "Ads"),
-                        const SizedBox(width: 4),
-                        _buildDockItem(3, Icons.bug_report_rounded, "Reports"),
+                        _buildDockItem(2, Icons.bug_report_rounded, "Reports"),
                       ],
                     ),
                   ),
@@ -312,12 +308,10 @@ class _QubiqPageState extends State<QubiqPage> {
                 ),
                 const SizedBox(height: 12),
                 if (provider.globalStats.isNotEmpty)
-                  SizedBox(
-                    height: 110,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      children: [
+                  Builder(
+                    builder: (context) {
+                      final isWeb = MediaQuery.of(context).size.width > 600;
+                      final cards = [
                         _buildMetricCard(
                           "Confirmed Schools", 
                           provider.confirmedSchools.length, 
@@ -337,8 +331,24 @@ class _QubiqPageState extends State<QubiqPage> {
                         _buildMetricCard("Assignments", provider.globalStats['assignments'] ?? 0, Colors.orange.shade400, Icons.assignment_rounded),
                         _buildMetricCard("Projects", provider.globalStats['projects'] ?? 0, Colors.purple.shade400, Icons.code_rounded),
                         _buildMetricCard("Submissions", provider.globalStats['submissions'] ?? 0, Colors.green.shade400, Icons.check_circle_rounded),
-                      ],
-                    ),
+                      ];
+
+                      if (isWeb) {
+                        return SizedBox(
+                          height: 110,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            children: cards,
+                          ),
+                        );
+                      } else {
+                        return Wrap(
+                          runSpacing: 16,
+                          children: cards,
+                        );
+                      }
+                    },
                   ),
                 const SizedBox(height: 24),
                 if (provider.globalStats.isNotEmpty)
@@ -373,16 +383,28 @@ class _QubiqPageState extends State<QubiqPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
+                Builder(
+                  builder: (context) {
+                    final isWeb = MediaQuery.of(context).size.width > 600;
+                    final chips = [
                       _buildFilterChip("All", provider),
                       _buildFilterChip("Active", provider),
                       _buildFilterChip("Pending", provider),
                       _buildFilterChip("None", provider),
-                    ],
-                  ),
+                    ];
+
+                    if (isWeb) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: chips),
+                      );
+                    } else {
+                      return Wrap(
+                        runSpacing: 8,
+                        children: chips,
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../Providers/CourseProvider.dart';
-import 'create_course_dialog.dart';
+import '../ContentHub/create_course_dialog.dart';
 
 class CourseListTab extends StatefulWidget {
   const CourseListTab({super.key});

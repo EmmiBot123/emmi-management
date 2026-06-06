@@ -859,6 +859,7 @@ class _RaiseTicketDialog extends StatefulWidget {
 
 class _RaiseTicketDialogState extends State<_RaiseTicketDialog> {
   final _messageController = TextEditingController();
+  final _contactController = TextEditingController();
   bool _isHardware = false;
   bool _isLoading = false;
   final _repository = SupportRepository();
@@ -866,6 +867,7 @@ class _RaiseTicketDialogState extends State<_RaiseTicketDialog> {
   @override
   void dispose() {
     _messageController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -883,6 +885,7 @@ class _RaiseTicketDialogState extends State<_RaiseTicketDialog> {
     final success = await _repository.createTicket(
       email: email,
       message: _messageController.text.trim(),
+      contactNumber: _contactController.text.trim(),
       isHardware: _isHardware,
     );
 
@@ -918,6 +921,23 @@ class _RaiseTicketDialogState extends State<_RaiseTicketDialog> {
             decoration: InputDecoration(
               hintText: "Describe the issue...",
               hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _contactController,
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              hintText: "Contact Number (Optional)",
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+              prefixIcon: Icon(Icons.phone, color: Colors.white.withOpacity(0.3), size: 18),
               filled: true,
               fillColor: Colors.white.withOpacity(0.05),
               border: OutlineInputBorder(

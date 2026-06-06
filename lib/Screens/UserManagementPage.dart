@@ -24,6 +24,7 @@ class _C {
 const _roleOptions = [
   {"key": "ADMIN", "label": "Admin", "icon": Icons.admin_panel_settings},
   {"key": "MARKETING", "label": "Marketing", "icon": Icons.campaign},
+  {"key": "DIGITAL_MARKETING", "label": "Digital Marketing", "icon": Icons.computer},
   {"key": "TELE_MARKETING", "label": "Tele Marketing", "icon": Icons.phone_in_talk},
   {"key": "ACCOUNTS", "label": "Accounts", "icon": Icons.account_balance_wallet},
   {"key": "ASSEMBLY_TEAM", "label": "Assembly", "icon": Icons.build},
@@ -360,16 +361,31 @@ class _UserManagementPageState extends State<UserManagementPage>
                     const SizedBox(height: 14),
 
                     // Role filter chips
-                    SizedBox(
-                      height: 34,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
+                    Builder(
+                      builder: (context) {
+                        final isWeb = MediaQuery.of(context).size.width > 600;
+                        final chips = [
                           _filterChip("All", null),
                           ..._roleOptions.map((r) =>
                               _filterChip(r["label"] as String, r["key"] as String)),
-                        ],
-                      ),
+                        ];
+                        
+                        if (isWeb) {
+                          return SizedBox(
+                            height: 34,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: chips,
+                            ),
+                          );
+                        } else {
+                          return Wrap(
+                            spacing: 0,
+                            runSpacing: 8,
+                            children: chips,
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -563,13 +579,17 @@ class _UserManagementPageState extends State<UserManagementPage>
   }
 
   Color _getRoleColor(String? role) {
-    switch (role?.toUpperCase()) {
+    if (role == null || role.isEmpty) return _C.textSecondary;
+    final firstRole = role.split(',').first.trim().toUpperCase();
+    switch (firstRole) {
       case 'SUPER_ADMIN':
         return _C.accent;
       case 'ADMIN':
         return _C.success;
       case 'MARKETING':
         return const Color(0xFFFFBB55);
+      case 'DIGITAL_MARKETING':
+        return const Color(0xFFFF9FF3);
       case 'TELE_MARKETING':
         return const Color(0xFF5B8DEF);
       case 'ACCOUNTS':
@@ -590,14 +610,18 @@ class _UserManagementPageState extends State<UserManagementPage>
   }
 
   String _formatRole(String? role) {
-    if (role == null) return "N/A";
+    if (role == null || role.isEmpty) return "N/A";
     return role
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((w) => w.isNotEmpty
-            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
-            : '')
-        .join(' ');
+        .split(',')
+        .map((r) => r
+            .trim()
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map((w) => w.isNotEmpty
+                ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+                : '')
+            .join(' '))
+        .join(', ');
   }
 }
 
@@ -615,7 +639,7 @@ class _AddUserSheet extends StatefulWidget {
 class _AddUserSheetState extends State<_AddUserSheet> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  String? _selectedRole;
+  List<String> _selectedRoles = [];
   bool _isSaving = false;
 
   @override
@@ -633,8 +657,8 @@ class _AddUserSheetState extends State<_AddUserSheet> {
       _showError("Please fill in name and email");
       return;
     }
-    if (_selectedRole == null) {
-      _showError("Please select a role");
+    if (_selectedRoles.isEmpty) {
+      _showError("Please select at least one role");
       return;
     }
 
@@ -642,7 +666,15 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     final link = context.read<UserProvider>().generateSetupLink(
           name: name,
           email: email,
-          role: _selectedRole!,
+          role: _selectedRoles.join(','),
+        );
+
+    // Send the email in the background
+    context.read<UserProvider>().sendInviteEmail(
+          toEmail: email,
+          name: name,
+          inviteLink: link,
+          role: _selectedRoles.join(', '),
         );
 
     // Copy to clipboard immediately
@@ -803,10 +835,16 @@ class _AddUserSheetState extends State<_AddUserSheet> {
                 final key = r["key"] as String;
                 final label = r["label"] as String;
                 final icon = r["icon"] as IconData;
-                final isSelected = _selectedRole == key;
+                final isSelected = _selectedRoles.contains(key);
 
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedRole = key),
+                  onTap: () => setState(() {
+                    if (isSelected) {
+                      _selectedRoles.remove(key);
+                    } else {
+                      _selectedRoles.add(key);
+                    }
+                  }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
@@ -843,6 +881,11 @@ class _AddUserSheetState extends State<_AddUserSheet> {
                                 : FontWeight.w400,
                           ),
                         ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.check_circle,
+                              size: 14, color: _C.accent),
+                        ],
                       ],
                     ),
                   ),
@@ -939,28 +982,35 @@ class _EditRoleSheet extends StatefulWidget {
 }
 
 class _EditRoleSheetState extends State<_EditRoleSheet> {
-  late String? _selectedRole;
+  late List<String> _selectedRoles;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedRole = widget.user.role;
+    _selectedRoles = widget.user.role != null && widget.user.role!.isNotEmpty
+        ? widget.user.role!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+        : [];
   }
 
   String _formatRole(String? role) {
-    if (role == null) return "N/A";
+    if (role == null || role.isEmpty) return "N/A";
     return role
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((w) => w.isNotEmpty
-            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
-            : '')
-        .join(' ');
+        .split(',')
+        .map((r) => r
+            .trim()
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map((w) => w.isNotEmpty
+                ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+                : '')
+            .join(' '))
+        .join(', ');
   }
 
   Future<void> _save() async {
-    if (_selectedRole == null || _selectedRole == widget.user.role) {
+    final newRoleString = _selectedRoles.join(',');
+    if (newRoleString == (widget.user.role ?? "")) {
       Navigator.pop(context);
       return;
     }
@@ -971,14 +1021,14 @@ class _EditRoleSheetState extends State<_EditRoleSheet> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.user.id)
-          .update({'role': _selectedRole});
+          .update({'role': newRoleString});
 
-      widget.onUpdated(_selectedRole!);
+      widget.onUpdated(newRoleString);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              "${widget.user.name ?? 'User'} updated to ${_formatRole(_selectedRole)}"),
+              "${widget.user.name ?? 'User'} roles updated to ${_formatRole(newRoleString)}"),
           backgroundColor: _C.surface,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1002,7 +1052,7 @@ class _EditRoleSheetState extends State<_EditRoleSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
-    final hasChanged = _selectedRole != widget.user.role;
+    final hasChanged = _selectedRoles.join(',') != (widget.user.role ?? "");
 
     return Container(
       padding: EdgeInsets.only(bottom: bottomPad),
@@ -1129,10 +1179,16 @@ class _EditRoleSheetState extends State<_EditRoleSheet> {
                 final key = r["key"] as String;
                 final label = r["label"] as String;
                 final icon = r["icon"] as IconData;
-                final isSelected = _selectedRole == key;
+                final isSelected = _selectedRoles.contains(key);
 
                 return GestureDetector(
-                  onTap: _isSaving ? null : () => setState(() => _selectedRole = key),
+                  onTap: _isSaving ? null : () => setState(() {
+                    if (isSelected) {
+                      _selectedRoles.remove(key);
+                    } else {
+                      _selectedRoles.add(key);
+                    }
+                  }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(

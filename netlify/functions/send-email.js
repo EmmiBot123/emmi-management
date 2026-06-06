@@ -53,26 +53,23 @@ exports.handler = async (event) => {
       </div>
     `;
 
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "api-key": process.env.BREVO_API_KEY,
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        sender: {
-          name: "Emmi Management",
-          email: process.env.BREVO_SENDER_EMAIL,
-        },
-        to: [{ email: to, name: name || "" }],
+        from: process.env.RESEND_SENDER_EMAIL || "Emmi Management <onboarding@resend.dev>",
+        to: [to],
         subject: `You're invited to join as ${role || "Team Member"} | Emmi Management`,
-        htmlContent: htmlContent,
+        html: htmlContent,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Brevo error:", errText);
+      console.error("Resend error:", errText);
       return { statusCode: 500, body: JSON.stringify({ error: errText }) };
     }
 

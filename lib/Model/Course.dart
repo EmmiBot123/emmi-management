@@ -30,6 +30,30 @@ class CurriculumItem {
   }
 }
 
+class CustomSection {
+  final String title;
+  final List<String> items;
+
+  CustomSection({
+    required this.title,
+    required this.items,
+  });
+
+  factory CustomSection.fromJson(Map<String, dynamic> json) {
+    return CustomSection(
+      title: json['title'] ?? '',
+      items: json['items'] != null ? List<String>.from(json['items']) : [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'items': items,
+    };
+  }
+}
+
 class Course {
   final String id;
   final String name;
@@ -40,9 +64,12 @@ class Course {
   final String imageUrl;
   final String level; // Beginner, Intermediate, Advanced
   final String language;
+  final String status;
   final List<String> learningPoints;
   final List<String> includedItems;
   final List<CurriculumItem> curriculum;
+  final List<CustomSection> customSections;
+  final DateTime? scheduledPublishDate;
   final DateTime? createdAt;
 
   Course({
@@ -55,9 +82,12 @@ class Course {
     this.imageUrl = '',
     this.level = 'Beginner',
     this.language = 'English',
+    this.status = 'Draft',
     this.learningPoints = const [],
     this.includedItems = const [],
     this.curriculum = const [],
+    this.customSections = const [],
+    this.scheduledPublishDate,
     this.createdAt,
   });
 
@@ -72,6 +102,7 @@ class Course {
       imageUrl: json['imageUrl'] ?? '',
       level: json['level'] ?? 'Beginner',
       language: json['language'] ?? 'English',
+      status: json['status'] ?? 'Draft',
       learningPoints: json['learningPoints'] != null
           ? List<String>.from(json['learningPoints'])
           : [],
@@ -83,6 +114,14 @@ class Course {
               .map((i) => CurriculumItem.fromJson(i))
               .toList()
           : [],
+      customSections: json['customSections'] != null
+          ? (json['customSections'] as List)
+              .map((i) => CustomSection.fromJson(i))
+              .toList()
+          : [],
+      scheduledPublishDate: json['scheduledPublishDate'] != null 
+          ? DateTime.tryParse(json['scheduledPublishDate']) 
+          : null,
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
@@ -98,9 +137,12 @@ class Course {
       'imageUrl': imageUrl,
       'level': level,
       'language': language,
+      'status': status,
       'learningPoints': learningPoints,
       'includedItems': includedItems,
       'curriculum': curriculum.map((i) => i.toJson()).toList(),
+      'customSections': customSections.map((i) => i.toJson()).toList(),
+      if (scheduledPublishDate != null) 'scheduledPublishDate': scheduledPublishDate!.toIso8601String(),
     };
   }
 }

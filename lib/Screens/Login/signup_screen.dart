@@ -180,7 +180,7 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-                  color: Colors.white.withValues(alpha: 0.65),
+                  color: Colors.white,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -192,13 +192,9 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                   border: Border.all(
                       color: Colors.white.withValues(alpha: 0.8), width: 1.5),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
@@ -289,8 +285,6 @@ class _SignupScreenLightState extends State<SignupScreenLight> {
                         ],
                       ),
                     ),
-                  ),
-                ),
               ),
             ),
           )

@@ -156,17 +156,32 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
                       const SizedBox(height: 24),
                       
                       // Filter Chips
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
+                      Builder(
+                        builder: (context) {
+                          final isWeb = MediaQuery.of(context).size.width > 600;
+                          final chips = [
                             _buildFilterChip("All Tickets", "all", Icons.all_inbox),
                             const SizedBox(width: 8),
                             _buildFilterChip("Open", "open", Icons.hourglass_top),
                             const SizedBox(width: 8),
                             _buildFilterChip("Resolved", "resolved", Icons.check_circle_outline),
-                          ],
-                        ),
+                          ];
+                          
+                          if (isWeb) {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: chips,
+                              ),
+                            );
+                          } else {
+                            return Wrap(
+                              spacing: 0,
+                              runSpacing: 8,
+                              children: chips,
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -351,32 +366,42 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Row(
-              children: [
-                Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
-                const SizedBox(width: 4),
-                Text(
-                  dateFormat.format(ticket.createdAt),
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (ticket.contactNumber.isNotEmpty) ...[
-                  const SizedBox(width: 12),
-                  Icon(Icons.phone, size: 12, color: Colors.grey.shade500),
-                  const SizedBox(width: 4),
-                  Text(
-                    ticket.contactNumber,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+            child: FutureBuilder<Map<String, String>>(
+              future: _getUserDetails(ticket.email),
+              builder: (context, userSnapshot) {
+                final userPhone = userSnapshot.data?['phone'] ?? '';
+                final displayPhone = ticket.contactNumber.isNotEmpty 
+                    ? ticket.contactNumber 
+                    : userPhone;
+
+                return Row(
+                  children: [
+                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(
+                      dateFormat.format(ticket.createdAt),
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
-              ],
+                    if (displayPhone.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Icon(Icons.phone, size: 12, color: const Color(0xFF38BDF8)),
+                      const SizedBox(width: 4),
+                      Text(
+                        displayPhone,
+                        style: const TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
           leading: Container(
@@ -679,6 +704,73 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
             ],
             const SizedBox(height: 16),
             
+            // Contact Action Section
+            FutureBuilder<Map<String, String>>(
+              future: _getUserDetails(ticket.email),
+              builder: (context, userSnapshot) {
+                final userPhone = userSnapshot.data?['phone'] ?? '';
+                final displayPhone = ticket.contactNumber.isNotEmpty 
+                    ? ticket.contactNumber 
+                    : userPhone;
+                
+                if (displayPhone.isEmpty) return const SizedBox.shrink();
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF38BDF8).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.contact_phone, size: 16, color: Color(0xFF0369A1)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "CONTACT INFORMATION",
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0369A1),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              displayPhone,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => launchUrl(Uri.parse("tel:$displayPhone")),
+                        icon: const Icon(Icons.call, size: 14),
+                        label: const Text("Call"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF38BDF8),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                          minimumSize: const Size(80, 36),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+            
             // Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -744,6 +836,7 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
             _legacyUserCache[uEmail] = {
               'name': user['name']?.toString() ?? '',
               'schoolId': sId,
+              'phone': user['phone']?.toString() ?? user['contact']?.toString() ?? '',
             };
           }
         }
@@ -772,10 +865,12 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
         final name = data['name'] as String? ?? '';
         final roleIdList = data['roleId'] as List<dynamic>? ?? [];
         final schoolId = roleIdList.isNotEmpty ? roleIdList.first.toString() : '';
+        final phone = data['phone'] as String? ?? data['contact'] as String? ?? '';
         
         final result = {
           'name': name,
           'schoolId': schoolId,
+          'phone': phone,
         };
         _userCache[email] = result;
         return result;

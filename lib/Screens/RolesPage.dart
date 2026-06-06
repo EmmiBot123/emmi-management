@@ -12,6 +12,8 @@ import 'Testing/testing_page.dart';
 import 'Accounts/accounts_dashboard.dart';
 import 'markerting/sales_dashboard.dart';
 import 'Qubiq/qubiq_page.dart';
+import 'ContentHub/content_hub_page.dart';
+import 'DigitalMarketing/digital_marketing_dashboard.dart';
 
 // ─── Dark palette (matches dashboard) ───
 class _P {
@@ -41,12 +43,16 @@ class _RolesPageState extends State<RolesPage> {
     "Accounts",
     "Operations",
     "Qubiq",
+    "Content Hub",
+    "Digital Marketing",
     "Testing",
   ];
   final allowedRoles = {
     "Users",
     "Sales",
     "Qubiq",
+    "Content Hub",
+    "Digital Marketing",
   };
 
   IconData getRoleIcon(String role) {
@@ -63,6 +69,10 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.precision_manufacturing;
       case "Qubiq":
         return Icons.api;
+      case "Content Hub":
+        return Icons.school_rounded;
+      case "Digital Marketing":
+        return Icons.campaign_outlined;
       case "Testing":
         return Icons.bug_report;
       default:
@@ -84,6 +94,10 @@ class _RolesPageState extends State<RolesPage> {
         return OperationsPage();
       case "Qubiq":
         return QubiqPage();
+      case "Content Hub":
+        return const ContentHubPage();
+      case "Digital Marketing":
+        return const DigitalMarketingDashboard();
       case "Testing":
         return TestingPage();
       default:
@@ -93,39 +107,55 @@ class _RolesPageState extends State<RolesPage> {
 
   /// Filter roles based on logged in user role
   List<String> filterRoles(String userRole) {
-    print(userRole);
-    if (userRole == "SUPER_ADMIN") {
+    print("User roles: $userRole");
+    final userRolesList = userRole.split(',').map((e) => e.trim().toUpperCase()).toList();
+
+    if (userRolesList.contains("SUPER_ADMIN")) {
       return roles;
     }
-    if (userRole == "ADMIN") {
-      return roles.where(allowedRoles.contains).toList();
+
+    Set<String> visibleSections = {};
+
+    if (userRolesList.contains("ADMIN")) {
+      visibleSections.addAll(roles.where(allowedRoles.contains));
     }
 
-    if (userRole == "MARKETING" || userRole == "TELE_MARKETING") {
-      return ["Sales"];
+    if (userRolesList.contains("MARKETING") || userRolesList.contains("TELE_MARKETING")) {
+      visibleSections.add("Sales");
     }
 
-    if (userRole == "ACCOUNTS") {
-      return ["Accounts"];
+    if (userRolesList.contains("DIGITAL_MARKETING")) {
+      visibleSections.add("Digital Marketing");
     }
 
-    if (userRole == "ASSEMBLY_TEAM" || userRole == "INSTALLATION_TEAM") {
-      return ["Operations", "Testing"];
+    if (userRolesList.contains("ACCOUNTS")) {
+      visibleSections.add("Accounts");
     }
 
-    if (userRole == "QUBIQ") {
-      return ["Qubiq", "Sales"];
+    if (userRolesList.contains("ASSEMBLY_TEAM") || userRolesList.contains("INSTALLATION_TEAM")) {
+      visibleSections.add("Operations");
+      visibleSections.add("Testing");
     }
 
-    if (userRole == "ADS") {
-      return ["Qubiq"];
+    if (userRolesList.contains("QUBIQ")) {
+      visibleSections.add("Qubiq");
+      visibleSections.add("Sales");
     }
 
-    if (userRole == "TESTING") {
-      return ["Testing"];
+    if (userRolesList.contains("ADS")) {
+      visibleSections.add("Qubiq");
     }
 
-    return roles; // Super Admin sees everything
+    if (userRolesList.contains("TESTING")) {
+      visibleSections.add("Testing");
+    }
+
+    if (visibleSections.isEmpty) {
+      return roles; // Fallback
+    }
+
+    // Return visible sections in original order
+    return roles.where((r) => visibleSections.contains(r)).toList();
   }
 
   Future<void> logoutUser(BuildContext context) async {

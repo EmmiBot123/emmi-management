@@ -35,7 +35,7 @@ class UserProvider extends ChangeNotifier {
 
           admin = allUsers
               .where((user) =>
-                  user.role != null && user.role!.toLowerCase() == "admin")
+                  user.role != null && user.role!.toLowerCase().split(',').map((e) => e.trim()).contains("admin"))
               .toList();
 
           admin.sort((a, b) => (a.name ?? "")
@@ -127,36 +127,20 @@ class UserProvider extends ChangeNotifier {
             " - User: ${u.name}, Role: ${u.role}, Source: ${firestoreUsers.contains(u) ? 'Firestore' : 'API'}");
       }
 
+      // Helper to check if user has a role
+      bool hasRole(UserModel user, String roleName) {
+        if (user.role == null) return false;
+        return user.role!.toUpperCase().split(',').map((e) => e.trim()).contains(roleName.toUpperCase());
+      }
+
       // Filter lists
-      marketing = allUsers
-          .where((user) =>
-              user.role != null && user.role!.toUpperCase() == "MARKETING")
-          .toList();
-      teleMarketing = allUsers
-          .where((user) =>
-              user.role != null && user.role!.toUpperCase() == "TELE_MARKETING")
-          .toList();
-      assembly = allUsers
-          .where((user) =>
-              user.role != null && user.role!.toUpperCase() == "ASSEMBLY_TEAM")
-          .toList();
-      installation = allUsers
-          .where((user) =>
-              user.role != null &&
-              user.role!.toUpperCase() == "INSTALLATION_TEAM")
-          .toList();
-      qubiq = allUsers
-          .where((user) =>
-              user.role != null && user.role!.toUpperCase() == "QUBIQ")
-          .toList();
-      ads = allUsers
-          .where(
-              (user) => user.role != null && user.role!.toUpperCase() == "ADS")
-          .toList();
-      admin = allUsers
-          .where((user) =>
-              user.role != null && user.role!.toUpperCase() == "ADMIN")
-          .toList();
+      marketing = allUsers.where((user) => hasRole(user, "MARKETING") || hasRole(user, "DIGITAL_MARKETING")).toList();
+      teleMarketing = allUsers.where((user) => hasRole(user, "TELE_MARKETING")).toList();
+      assembly = allUsers.where((user) => hasRole(user, "ASSEMBLY_TEAM")).toList();
+      installation = allUsers.where((user) => hasRole(user, "INSTALLATION_TEAM")).toList();
+      qubiq = allUsers.where((user) => hasRole(user, "QUBIQ")).toList();
+      ads = allUsers.where((user) => hasRole(user, "ADS")).toList();
+      admin = allUsers.where((user) => hasRole(user, "ADMIN")).toList();
 
       // Helper to sort
       void sortList(List<UserModel> list) {
@@ -235,12 +219,27 @@ class UserProvider extends ChangeNotifier {
       final newUser = UserModel.fromJson(data);
 
       /// ✅ Update local state correctly
-      if (role == "ADMIN") {
+      final roleList = role.split(',').map((e) => e.trim().toUpperCase()).toList();
+      if (roleList.contains("ADMIN")) {
         admin.add(newUser);
-      } else if (role == "TELE_MARKETING") {
+      }
+      if (roleList.contains("TELE_MARKETING")) {
         teleMarketing.add(newUser);
-      } else if (role == "MARKETING") {
+      }
+      if (roleList.contains("MARKETING") || roleList.contains("DIGITAL_MARKETING")) {
         marketing.add(newUser);
+      }
+      if (roleList.contains("ASSEMBLY_TEAM")) {
+        assembly.add(newUser);
+      }
+      if (roleList.contains("INSTALLATION_TEAM")) {
+        installation.add(newUser);
+      }
+      if (roleList.contains("QUBIQ")) {
+        qubiq.add(newUser);
+      }
+      if (roleList.contains("ADS")) {
+        ads.add(newUser);
       }
       isLoadingAdd = false;
       notifyListeners();
@@ -277,7 +276,7 @@ class UserProvider extends ChangeNotifier {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  Future<void> _sendInviteEmail({
+  Future<void> sendInviteEmail({
     required String toEmail,
     required String name,
     required String inviteLink,
