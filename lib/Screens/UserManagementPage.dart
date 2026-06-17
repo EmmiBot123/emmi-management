@@ -19,6 +19,7 @@ class _C {
   static const textMuted = Color(0xFF565B73);
   static const danger = Color(0xFFFF6B6B);
   static const success = Color(0xFF00D4AA);
+  static const warning = Color(0xFFFFBB55);
 }
 
 /// All available role options for user assignment
