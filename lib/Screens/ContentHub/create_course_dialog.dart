@@ -40,7 +40,10 @@ class CurriculumItemState {
 }
 
 class CreateCourseDialog extends StatefulWidget {
-  const CreateCourseDialog({super.key});
+  final Course? course;
+  final bool isDigitalMarketer;
+
+  const CreateCourseDialog({super.key, this.course, this.isDigitalMarketer = false});
 
   @override
   State<CreateCourseDialog> createState() => _CreateCourseDialogState();
@@ -55,6 +58,7 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
   final _categoryController = TextEditingController();
   final _durationController = TextEditingController();
   final _priceController = TextEditingController();
+  final _offerPriceController = TextEditingController();
   String _status = "Draft";
 
   // Standard Arrays
@@ -76,8 +80,43 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
   @override
   void initState() {
     super.initState();
-    _addLearningPoint();
-    _addIncludedItem();
+    if (widget.course != null) {
+      _nameController.text = widget.course!.name;
+      _descController.text = widget.course!.description;
+      _categoryController.text = widget.course!.category;
+      _durationController.text = widget.course!.duration;
+      _priceController.text = widget.course!.price.toString();
+      _offerPriceController.text = widget.course!.offerPrice?.toString() ?? '';
+      _status = widget.course!.status;
+      _scheduledDate = widget.course!.scheduledPublishDate;
+      if (_scheduledDate != null) {
+        _scheduledTime = TimeOfDay.fromDateTime(_scheduledDate!);
+      }
+
+      for (var pt in widget.course!.learningPoints) {
+        _learningPointsControllers.add(TextEditingController(text: pt));
+      }
+      for (var it in widget.course!.includedItems) {
+        _includedItemsControllers.add(TextEditingController(text: it));
+      }
+      for (var cur in widget.course!.curriculum) {
+        _curriculumStates.add(CurriculumItemState(
+          titleController: TextEditingController(text: cur.title),
+          typeController: TextEditingController(text: cur.type),
+          durationController: TextEditingController(text: cur.duration),
+          videoUrlController: TextEditingController(text: cur.videoUrl),
+        ));
+      }
+      for (var sec in widget.course!.customSections) {
+        _customSectionStates.add(CustomSectionState(
+          titleController: TextEditingController(text: sec.title),
+          itemControllers: sec.items.map((e) => TextEditingController(text: e)).toList(),
+        ));
+      }
+    }
+
+    if (_learningPointsControllers.isEmpty) _addLearningPoint();
+    if (_includedItemsControllers.isEmpty) _addIncludedItem();
     _loadAvailableTemplates();
   }
 
@@ -88,6 +127,7 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
     _categoryController.dispose();
     _durationController.dispose();
     _priceController.dispose();
+    _offerPriceController.dispose();
     for (var c in _learningPointsControllers) {
       c.dispose();
     }
@@ -311,21 +351,28 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
                             children: [
                               Expanded(child: _buildTextField("Price (in ₹)", _priceController)),
                               const SizedBox(width: 16),
+                              Expanded(child: _buildTextField("Offer Price (optional)", _offerPriceController)),
+                            ],
+                          ),
+                          Row(
+                            children: [
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.only(bottom: 16),
                                   child: DropdownButtonFormField<String>(
-                                    initialValue: _status,
+                                    value: ["Draft", "Published", "Archived", "Scheduled", "Pending SEO"].contains(_status) ? _status : "Draft",
                                     dropdownColor: const Color(0xFF1E293B),
                                     style: const TextStyle(color: Colors.white),
                                     decoration: _inputDecoration("Status"),
-                                    items: ["Draft", "Published", "Archived", "Scheduled"]
+                                    items: ["Draft", "Published", "Archived", "Scheduled", "Pending SEO"]
                                         .map((l) => DropdownMenuItem(value: l, child: Text(l)))
                                         .toList(),
                                     onChanged: (v) => setState(() => _status = v!),
                                   ),
                                 ),
                               ),
+                              const SizedBox(width: 16),
+                              const Spacer(),
                             ],
                           ),
 
@@ -405,7 +452,7 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
             child: const Icon(Icons.school_rounded, color: Color(0xFF38BDF8), size: 24),
           ),
           const SizedBox(width: 16),
-          const Text("Create Advanced Course", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(widget.course == null ? "Create Advanced Course" : "Edit Course", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           const Spacer(),
           if (_availableTemplates.isNotEmpty)
             DropdownButton<String>(
@@ -439,6 +486,53 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
     );
   }
 
+  void _saveCourse([String? overrideStatus]) {
+    if (_formKey.currentState!.validate()) {
+      final finalStatus = overrideStatus ?? _status;
+      
+      if (finalStatus == "Scheduled" && (_scheduledDate == null || _scheduledTime == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a date and time for scheduling.")));
+        return;
+      }
+
+      DateTime? finalPublishDate;
+      if (finalStatus == "Scheduled" && _scheduledDate != null && _scheduledTime != null) {
+        finalPublishDate = DateTime(
+          _scheduledDate!.year,
+          _scheduledDate!.month,
+          _scheduledDate!.day,
+          _scheduledTime!.hour,
+          _scheduledTime!.minute,
+        );
+      }
+
+      final course = Course(
+        id: widget.course?.id ?? '',
+        name: _nameController.text,
+        description: _descController.text,
+        category: _categoryController.text,
+        duration: _durationController.text,
+        price: double.tryParse(_priceController.text) ?? 0.0,
+        offerPrice: double.tryParse(_offerPriceController.text),
+        status: finalStatus,
+        scheduledPublishDate: finalPublishDate,
+        learningPoints: _learningPointsControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+        includedItems: _includedItemsControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+        curriculum: _curriculumStates.map((s) => CurriculumItem(
+          title: s.titleController.text,
+          type: s.typeController.text,
+          duration: s.durationController.text,
+          videoUrl: s.videoUrlController.text,
+        )).toList(),
+        customSections: _customSectionStates.map((s) => CustomSection(
+          title: s.titleController.text,
+          items: s.itemControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+        )).toList(),
+      );
+      Navigator.pop(context, course);
+    }
+  }
+
   Widget _buildFooter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -451,58 +545,53 @@ class _CreateCourseDialogState extends State<CreateCourseDialog> {
             child: const Text("Cancel"),
           ),
           const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                if (_status == "Scheduled" && (_scheduledDate == null || _scheduledTime == null)) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a date and time for scheduling.")));
-                  return;
-                }
-
-                DateTime? finalPublishDate;
-                if (_status == "Scheduled" && _scheduledDate != null && _scheduledTime != null) {
-                  finalPublishDate = DateTime(
-                    _scheduledDate!.year,
-                    _scheduledDate!.month,
-                    _scheduledDate!.day,
-                    _scheduledTime!.hour,
-                    _scheduledTime!.minute,
-                  );
-                }
-
-                final course = Course(
-                  id: '',
-                  name: _nameController.text,
-                  description: _descController.text,
-                  category: _categoryController.text,
-                  duration: _durationController.text,
-                  price: double.tryParse(_priceController.text) ?? 0.0,
-                  status: _status,
-                  scheduledPublishDate: finalPublishDate,
-                  learningPoints: _learningPointsControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-                  includedItems: _includedItemsControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-                  curriculum: _curriculumStates.map((s) => CurriculumItem(
-                    title: s.titleController.text,
-                    type: s.typeController.text,
-                    duration: s.durationController.text,
-                    videoUrl: s.videoUrlController.text,
-                  )).toList(),
-                  customSections: _customSectionStates.map((s) => CustomSection(
-                    title: s.titleController.text,
-                    items: s.itemControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-                  )).toList(),
-                );
-                Navigator.pop(context, course);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          if (widget.isDigitalMarketer)
+            ElevatedButton(
+              onPressed: () => _saveCourse("Published"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Update Server", style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          else ...[
+            ElevatedButton(
+              onPressed: () => _saveCourse("Pending SEO"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Send for SEO", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            child: const Text("Create Course", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () => _saveCourse("Published"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Publish", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            if (widget.course != null) ...[
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _saveCourse(), // Uses dropdown status
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF64748B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ]
+          ]
         ],
       ),
     );

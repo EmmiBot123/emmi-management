@@ -40,8 +40,13 @@ class _ProjectListTabState extends State<ProjectListTab> {
                   final result = await showDialog(context: context, builder: (_) => const CreateProjectDialog());
                   if (result != null) {
                     final success = await provider.addProject(result);
-                    if (success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project created successfully")));
+                    if (success) {
+                      if (result.status == "Published") {
+                        await provider.syncProjectToQubiq(result);
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project created successfully")));
+                      }
                     }
                   }
                 },
@@ -99,9 +104,41 @@ class _ProjectListTabState extends State<ProjectListTab> {
                                 ),
                               ],
                             ),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
-                              onPressed: () => _confirmDelete(context, provider, project.id),
+                            onTap: () async {
+                              final result = await showDialog(context: context, builder: (_) => CreateProjectDialog(project: project));
+                              if (result != null) {
+                                final success = await provider.updateProject(result);
+                                if (success) {
+                                  if (result.status == "Published") {
+                                    await provider.syncProjectToQubiq(result);
+                                  }
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project updated successfully")));
+                                }
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                                  onPressed: () async {
+                                    final result = await showDialog(context: context, builder: (_) => CreateProjectDialog(project: project));
+                                    if (result != null) {
+                                      final success = await provider.updateProject(result);
+                                      if (success) {
+                                        if (result.status == "Published") {
+                                          await provider.syncProjectToQubiq(result);
+                                        }
+                                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Project updated successfully")));
+                                      }
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
+                                  onPressed: () => _confirmDelete(context, provider, project.id),
+                                ),
+                              ],
                             ),
                           ),
                         );

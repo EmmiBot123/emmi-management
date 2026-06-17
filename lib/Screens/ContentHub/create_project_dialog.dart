@@ -18,7 +18,10 @@ class CustomSectionState {
 }
 
 class CreateProjectDialog extends StatefulWidget {
-  const CreateProjectDialog({super.key});
+  final Project? project;
+  final bool isDigitalMarketer;
+
+  const CreateProjectDialog({super.key, this.project, this.isDigitalMarketer = false});
 
   @override
   State<CreateProjectDialog> createState() => _CreateProjectDialogState();
@@ -55,7 +58,31 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   @override
   void initState() {
     super.initState();
-    _addTag();
+    if (widget.project != null) {
+      _titleController.text = widget.project!.title;
+      _descController.text = widget.project!.description;
+      _imageUrlController.text = widget.project!.imageUrl;
+      _githubUrlController.text = widget.project!.githubUrl;
+      _liveUrlController.text = widget.project!.liveUrl;
+      _difficulty = widget.project!.difficulty;
+      _status = widget.project!.status;
+      _scheduledDate = widget.project!.scheduledPublishDate;
+      if (_scheduledDate != null) {
+        _scheduledTime = TimeOfDay.fromDateTime(_scheduledDate!);
+      }
+
+      for (var pt in widget.project!.tags) {
+        _tagControllers.add(TextEditingController(text: pt));
+      }
+      for (var sec in widget.project!.customSections) {
+        _customSectionStates.add(CustomSectionState(
+          titleController: TextEditingController(text: sec.title),
+          itemControllers: sec.items.map((e) => TextEditingController(text: e)).toList(),
+        ));
+      }
+    }
+
+    if (_tagControllers.isEmpty) _addTag();
     _loadAvailableTemplates();
   }
 
@@ -376,7 +403,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
             child: Icon(Icons.rocket_launch_rounded, color: _accentColor, size: 24),
           ),
           const SizedBox(width: 16),
-          const Text("Create Advanced Project", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(widget.project == null ? "Create Advanced Project" : "Edit Project", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           const Spacer(),
           if (_availableTemplates.isNotEmpty)
             DropdownButton<String>(
@@ -410,6 +437,46 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     );
   }
 
+  void _saveProject([String? overrideStatus]) {
+    if (_formKey.currentState!.validate()) {
+      final finalStatus = overrideStatus ?? _status;
+
+      if (finalStatus == "Scheduled" && (_scheduledDate == null || _scheduledTime == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a date and time for scheduling.")));
+        return;
+      }
+
+      DateTime? finalPublishDate;
+      if (finalStatus == "Scheduled" && _scheduledDate != null && _scheduledTime != null) {
+        finalPublishDate = DateTime(
+          _scheduledDate!.year,
+          _scheduledDate!.month,
+          _scheduledDate!.day,
+          _scheduledTime!.hour,
+          _scheduledTime!.minute,
+        );
+      }
+
+      final project = Project(
+        id: widget.project?.id ?? '',
+        title: _titleController.text,
+        description: _descController.text,
+        difficulty: _difficulty,
+        status: finalStatus,
+        scheduledPublishDate: finalPublishDate,
+        tags: _tagControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+        imageUrl: _imageUrlController.text,
+        githubUrl: _githubUrlController.text,
+        liveUrl: _liveUrlController.text,
+        customSections: _customSectionStates.map((s) => CustomSection(
+          title: s.titleController.text,
+          items: s.itemControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+        )).toList(),
+      );
+      Navigator.pop(context, project);
+    }
+  }
+
   Widget _buildFooter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -422,52 +489,51 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
             child: const Text("Cancel"),
           ),
           const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                if (_status == "Scheduled" && (_scheduledDate == null || _scheduledTime == null)) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a date and time for scheduling.")));
-                  return;
-                }
-
-                DateTime? finalPublishDate;
-                if (_status == "Scheduled" && _scheduledDate != null && _scheduledTime != null) {
-                  finalPublishDate = DateTime(
-                    _scheduledDate!.year,
-                    _scheduledDate!.month,
-                    _scheduledDate!.day,
-                    _scheduledTime!.hour,
-                    _scheduledTime!.minute,
-                  );
-                }
-
-                final project = Project(
-                  id: '',
-                  title: _titleController.text,
-                  description: _descController.text,
-                  difficulty: _difficulty,
-                  status: _status,
-                  scheduledPublishDate: finalPublishDate,
-                  imageUrl: _imageUrlController.text,
-                  githubUrl: _githubUrlController.text,
-                  liveUrl: _liveUrlController.text,
-                  tags: _tagControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-                  customSections: _customSectionStates.map((s) => CustomSection(
-                    title: s.titleController.text,
-                    items: s.itemControllers.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-                  )).toList(),
-                );
-                Navigator.pop(context, project);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accentColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          if (widget.project != null)
+            ElevatedButton(
+              onPressed: () => _saveProject(), // Uses dropdown status
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          else if (widget.isDigitalMarketer)
+            ElevatedButton(
+              onPressed: () => _saveProject("Published"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Update Server", style: TextStyle(fontWeight: FontWeight.bold)),
+            )
+          else ...[
+            ElevatedButton(
+              onPressed: () => _saveProject("Pending SEO"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Send for SEO", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            child: const Text("Create Project", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () => _saveProject("Published"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Directly Publish", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ]
         ],
       ),
     );

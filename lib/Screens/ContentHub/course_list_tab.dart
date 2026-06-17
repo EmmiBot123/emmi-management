@@ -89,7 +89,7 @@ class _CourseListTabState extends State<CourseListTab> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        "${course.category} • ${course.duration} • ₹${course.price}",
+                                        "${course.category} • ${course.duration} • ₹${course.offerPrice != null ? '${course.offerPrice} (was ₹${course.price})' : course.price}",
                                         style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -98,9 +98,55 @@ class _CourseListTabState extends State<CourseListTab> {
                                 ),
                               ],
                             ),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
-                              onPressed: () => _confirmDelete(context, provider, course.id),
+                            onTap: () async {
+                              final result = await showDialog(
+                                context: context,
+                                builder: (_) => CreateCourseDialog(course: course),
+                              );
+                              if (result != null) {
+                                final success = await provider.updateCourse(result);
+                                if (success) {
+                                  if (result.status == "Published") {
+                                    await provider.syncCourseToQubiq(result);
+                                  }
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Course updated successfully")),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent, size: 20),
+                                  onPressed: () async {
+                                    final result = await showDialog(
+                                      context: context,
+                                      builder: (_) => CreateCourseDialog(course: course),
+                                    );
+                                    if (result != null) {
+                                      final success = await provider.updateCourse(result);
+                                      if (success) {
+                                        if (result.status == "Published") {
+                                          await provider.syncCourseToQubiq(result);
+                                        }
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text("Course updated successfully")),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
+                                  onPressed: () => _confirmDelete(context, provider, course.id),
+                                ),
+                              ],
                             ),
                           ),
                         );

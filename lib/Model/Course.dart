@@ -61,6 +61,7 @@ class Course {
   final String category;
   final String duration;
   final double price;
+  final double? offerPrice;
   final String imageUrl;
   final String level; // Beginner, Intermediate, Advanced
   final String language;
@@ -79,6 +80,7 @@ class Course {
     required this.category,
     required this.duration,
     required this.price,
+    this.offerPrice,
     this.imageUrl = '',
     this.level = 'Beginner',
     this.language = 'English',
@@ -99,6 +101,7 @@ class Course {
       category: json['category'] ?? '',
       duration: json['duration'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
+      offerPrice: json['offerPrice'] != null ? (json['offerPrice'] as num).toDouble() : null,
       imageUrl: json['imageUrl'] ?? '',
       level: json['level'] ?? 'Beginner',
       language: json['language'] ?? 'English',
@@ -134,6 +137,7 @@ class Course {
       'category': category,
       'duration': duration,
       'price': price,
+      if (offerPrice != null) 'offerPrice': offerPrice,
       'imageUrl': imageUrl,
       'level': level,
       'language': language,

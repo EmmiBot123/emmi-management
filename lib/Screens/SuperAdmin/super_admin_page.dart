@@ -1,4 +1,7 @@
+import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -18,18 +21,18 @@ import '../UserManagementPage.dart';
 
 // ─── Color Palette ───
 class _Palette {
-  static const bg = Color(0xFF0F1117);
-  static const surface = Color(0xFF1A1D27);
-  static const surfaceLight = Color(0xFF242836);
-  static const accent = Color(0xFF6C63FF);
-  static const accentAlt = Color(0xFF00D4AA);
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFF8B8FA3);
-  static const textMuted = Color(0xFF565B73);
-  static const danger = Color(0xFFFF6B6B);
-  static const warning = Color(0xFFFFBB55);
-  static const success = Color(0xFF00D4AA);
-  static const info = Color(0xFF5B8DEF);
+  static const bg = Color(0xFF09090B);
+  static const surface = Color(0xFF18181B);
+  static const surfaceLight = Color(0xFF27272A);
+  static const accent = Color(0xFF38BDF8);
+  static const accentAlt = Color(0xFF818CF8);
+  static const textPrimary = Color(0xFFFAFAFA);
+  static const textSecondary = Color(0xFFA1A1AA);
+  static const textMuted = Color(0xFF71717A);
+  static const danger = Color(0xFFEF4444);
+  static const warning = Color(0xFFF59E0B);
+  static const success = Color(0xFF10B981);
+  static const info = Color(0xFF0EA5E9);
 }
 
 class SuperAdminPage extends StatefulWidget {
@@ -69,6 +72,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _pulseController;
+  late AnimationController _bgAnimationController;
 
   @override
   void initState() {
@@ -85,6 +89,10 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    _bgAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat();
     _loadAllMetrics();
   }
 
@@ -92,6 +100,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   void dispose() {
     _fadeController.dispose();
     _pulseController.dispose();
+    _bgAnimationController.dispose();
     super.dispose();
   }
 
@@ -107,6 +116,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         _fetchSchools(),
         _fetchHardwareOrderMetrics(),
       ]);
+      _totalAccounts = _totalTeamMembers + _confirmedSchools;
     } catch (e) {
       debugPrint("Dashboard metrics error: $e");
     }
@@ -157,6 +167,16 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         final data = doc.data();
         data['id'] = doc.id;
         return UserModel.fromJson(data);
+      }).where((user) {
+        final role = user.role?.toUpperCase() ?? '';
+        final staffRoles = [
+          'SUPER_ADMIN', 'ADMIN', 'MARKETING', 'TELE_MARKETING', 
+          'ACCOUNTS', 'ASSEMBLY_TEAM', 'INSTALLATION_TEAM', 
+          'QUBIQ', 'ADS', 'TESTING'
+        ];
+        final isStaff = staffRoles.contains(role);
+        final isNotManuallyVerified = !(user.name?.toLowerCase().contains('manually verified') ?? false);
+        return isStaff && isNotManuallyVerified;
       }).toList();
       _teamMembers.sort((a, b) =>
           (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
@@ -171,7 +191,6 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       final statsRepo = StatisticsRepository();
       final stats = await statsRepo.getGlobalStats();
       setState(() {
-        _totalAccounts = stats['users'] ?? 0;
         _totalAssignments = stats['assignments'] ?? 0;
         _totalProjects = stats['projects'] ?? 0;
         _totalSubmissions = stats['submissions'] ?? 0;
@@ -343,13 +362,36 @@ class _SuperAdminPageState extends State<SuperAdminPage>
     final isWide = width > 1000;
     final isMedium = width > 650;
 
-    return Container(
-      color: _Palette.bg,
-      child: _isLoading
-          ? _buildLoader()
-          : FadeTransition(
-              opacity: _fadeAnimation,
-              child: RefreshIndicator(
+    return Scaffold(
+      backgroundColor: _Palette.bg,
+      body: Stack(
+        children: [
+          // Dynamic Animated Background
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _bgAnimationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _DynamicMeshGradientPainter(_bgAnimationController.value),
+                );
+              },
+            ),
+          ),
+          // Glass Overlay
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.2),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: _isLoading
+                ? _buildLoader()
+                : FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: RefreshIndicator(
                 color: _Palette.accent,
                 backgroundColor: _Palette.surface,
                 onRefresh: _loadAllMetrics,
@@ -379,6 +421,9 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 ),
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -425,162 +470,213 @@ class _SuperAdminPageState extends State<SuperAdminPage>
     }
 
     return Container(
-      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF4834DF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Decorative circles
-          Positioned(
-            right: -20,
-            top: -30,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 40,
-            bottom: -40,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          // Content
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      auth.name ?? "Admin",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greeting,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              return Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _Palette.accentAlt.withOpacity(
-                                    0.6 + 0.4 * _pulseController.value,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _Palette.accentAlt.withOpacity(
-                                        0.4 * _pulseController.value,
-                                      ),
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "EMMI Console • Live",
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () => context.read<AuthProvider>().logout(),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.logout,
-                          color: Colors.white70, size: 20),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 6),
                       Text(
-                        "Logout",
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        auth.name ?? "Admin",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (context, child) {
+                                return Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _Palette.accentAlt.withValues(
+                                      alpha: 0.6 + 0.4 * _pulseController.value,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _Palette.accentAlt.withValues(
+                                          alpha: 0.4 * _pulseController.value,
+                                        ),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "EMMI Console • Live",
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
+                // --- Quick Actions Grid in Header ---
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildHeaderAction(
+                      icon: Icons.people_alt,
+                      label: "Users",
+                      color: _Palette.info,
+                      onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(builder: (_) => const UserManagementPage())),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildHeaderAction(
+                      icon: Icons.confirmation_number,
+                      label: "Tickets",
+                      color: _Palette.warning,
+                      onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(builder: (_) => const SupportTicketListPage())),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildHeaderAction(
+                      icon: Icons.inventory,
+                      label: "Hardware",
+                      color: _Palette.accentAlt,
+                      onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(builder: (_) => const HardwareOrdersPage())),
+                    ),
+                    const SizedBox(width: 24),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                    const SizedBox(width: 24),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => context.read<AuthProvider>().logout(),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFFFF6B6B).withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.logout,
+                                color: Color(0xFFFF6B6B), size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Logout",
+                              style: TextStyle(
+                                color: Color(0xFFFF6B6B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        splashColor: color.withValues(alpha: 0.1),
+        highlightColor: color.withValues(alpha: 0.05),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color.withValues(alpha: 0.9),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -648,24 +744,26 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       child: InkWell(
         onTap: data.onTap,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _Palette.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: data.color.withValues(alpha: 0.25),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: data.color.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: data.color.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -695,6 +793,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                 ),
               ),
             ],
+          ),
+        ),
           ),
         ),
       ),
@@ -742,183 +842,184 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   }
 
   Widget _buildTicketCard() {
-    final total = _totalTickets > 0 ? _totalTickets : 1;
-    final resolvedPct = (_resolvedTickets / total * 100).round();
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _Palette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Palette.surfaceLight, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _Palette.info.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.confirmation_number,
-                    size: 18, color: _Palette.info),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                "Support Tickets",
-                style: TextStyle(
-                  color: _Palette.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                      builder: (_) => const SupportTicketListPage()),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: _Palette.accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    "View All →",
-                    style: TextStyle(
-                      color: _Palette.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
           ),
-          const SizedBox(height: 24),
-          // Stat row
-          Row(
-            children: [
-              _ticketStat("Total", _totalTickets, _Palette.textPrimary),
-              const SizedBox(width: 24),
-              _ticketStat("Open", _openTickets, _Palette.warning),
-              const SizedBox(width: 24),
-              _ticketStat("Resolved", _resolvedTickets, _Palette.success),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Progress bar
-          Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _Palette.info.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.confirmation_number,
+                        size: 18, color: _Palette.info),
+                  ),
+                  const SizedBox(width: 12),
                   const Text(
-                    "Resolution Rate",
+                    "Support Tickets",
                     style: TextStyle(
-                      color: _Palette.textSecondary,
-                      fontSize: 12,
+                      color: _Palette.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    "$resolvedPct%",
-                    style: const TextStyle(
-                      color: _Palette.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                  const Spacer(),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SupportTicketListPage()),
+                    ),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _Palette.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "View All →",
+                        style: TextStyle(
+                          color: _Palette.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                height: 6,
-                decoration: BoxDecoration(
-                  color: _Palette.surfaceLight,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: resolvedPct / 100),
-                        duration: const Duration(milliseconds: 1200),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, value, _) {
-                          return Container(
-                            width: constraints.maxWidth * value,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(3),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  _Palette.accent,
-                                  _Palette.accentAlt,
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _Palette.accent.withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                ),
-                              ],
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 160,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          PieChart(
+                            PieChartData(
+                              sectionsSpace: 4,
+                              centerSpaceRadius: 45,
+                              sections: _totalTickets == 0
+                                  ? [
+                                      PieChartSectionData(
+                                        value: 1,
+                                        color: Colors.white.withValues(alpha: 0.1),
+                                        radius: 20,
+                                        showTitle: false,
+                                      )
+                                    ]
+                                  : [
+                                      PieChartSectionData(
+                                        value: _resolvedTickets.toDouble(),
+                                        color: _Palette.success,
+                                        radius: 20,
+                                        showTitle: false,
+                                      ),
+                                      PieChartSectionData(
+                                        value: _openTickets.toDouble(),
+                                        color: _Palette.warning,
+                                        radius: 20,
+                                        showTitle: false,
+                                      ),
+                                    ],
                             ),
-                          );
-                        },
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _totalTickets.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Text(
+                                "Total",
+                                style: TextStyle(
+                                  color: _Palette.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(width: 32),
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLegend("Resolved", _resolvedTickets, _Palette.success),
+                          const SizedBox(height: 20),
+                          _buildLegend("Open", _openTickets, _Palette.warning),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _ticketStat(String label, int count, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildLegend(String title, int count, Color color) {
+    return Row(
       children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(color: _Palette.textSecondary, fontSize: 14),
+        ),
+        const Spacer(),
         Text(
           count.toString(),
-          style: TextStyle(
-            color: color,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: _Palette.textMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
 
   Widget _buildStatsColumn() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _Palette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Palette.surfaceLight, width: 1),
-      ),
-      child: Column(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -988,6 +1089,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }
@@ -1068,14 +1171,17 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         onTap: onTap,
         splashColor: color.withValues(alpha: 0.08),
         highlightColor: color.withValues(alpha: 0.04),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: _Palette.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _Palette.surfaceLight, width: 1),
-          ),
-          child: Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+              ),
+              child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -1121,20 +1227,25 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ],
           ),
         ),
+          ),
+        ),
       ),
     );
   }
 
   // ═══════════════════ TEAM MEMBERS ═══════════════════
   Widget _buildTeamSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _Palette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Palette.surfaceLight, width: 1),
-      ),
-      child: Column(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
@@ -1212,6 +1323,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ),
         ],
       ),
+        ),
+      ),
     );
   }
 
@@ -1221,7 +1334,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: _Palette.surfaceLight,
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1384,14 +1497,17 @@ class _SuperAdminPageState extends State<SuperAdminPage>
   }
 
   Widget _buildStatCard(String title, int value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _Palette.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -1409,19 +1525,24 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           ),
         ],
       ),
+        ),
+      ),
     );
   }
 
   // ═══════════════════ SCHOOL STATS ═══════════════════
   Widget _buildSchoolStatsSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _Palette.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Palette.surfaceLight),
-      ),
-      child: Column(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
@@ -1440,15 +1561,16 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             items: _allSchools.map((s) {
+              final schoolId = s['schoolCode'] ?? s['id'] ?? s['schoolId'];
               return DropdownMenuItem<String>(
-                value: s['schoolId'],
-                child: Text(s['name'] ?? s['schoolId']),
+                value: schoolId,
+                child: Text(s['name'] ?? schoolId ?? 'Unknown School'),
               );
             }).toList(),
             onChanged: (val) {
               if (val != null) _loadSchoolStats(val);
             },
-            value: _selectedSchoolId,
+            initialValue: _selectedSchoolId,
           ),
           if (_isSchoolLoading)
             const Padding(
@@ -1468,6 +1590,8 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ),
           ],
         ],
+      ),
+        ),
       ),
     );
   }
@@ -1548,13 +1672,17 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                           final mission = _signedMissions[i];
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: _Palette.surface,
+                            child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: _Palette.surfaceLight),
-                            ),
-                            child: Column(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.05),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                                  ),
+                                  child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
@@ -1610,6 +1738,9 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                                 ),
                               ],
                             ),
+                                ),
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -1664,7 +1795,7 @@ class _SuperAdminPageState extends State<SuperAdminPage>
       padding: const EdgeInsets.all(32),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _Palette.surface,
+        color: _Palette.surface.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _Palette.surfaceLight, width: 1.5),
       ),
@@ -1772,4 +1903,64 @@ class _MetricData {
   final VoidCallback? onTap;
 
   _MetricData(this.title, this.value, this.icon, this.color, this.badge, {this.onTap});
+}
+
+
+// ═══════════════════ ANIMATED BACKGROUND PAINTER ═══════════════════
+class _DynamicMeshGradientPainter extends CustomPainter {
+  final double animationValue;
+
+  _DynamicMeshGradientPainter(this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF09090B));
+
+    final centerX1 = size.width * (0.2 + 0.3 * math.sin(animationValue * math.pi * 2));
+    final centerY1 = size.height * (0.2 + 0.3 * math.cos(animationValue * math.pi * 2));
+
+    final centerX2 = size.width * (0.8 + 0.2 * math.cos(animationValue * math.pi * 2));
+    final centerY2 = size.height * (0.7 + 0.2 * math.sin(animationValue * math.pi * 2));
+
+    final centerX3 = size.width * (0.5 + 0.3 * math.sin(animationValue * math.pi * 2 + math.pi));
+    final centerY3 = size.height * (0.9 + 0.1 * math.cos(animationValue * math.pi * 2));
+
+    _drawOrb(canvas, Offset(centerX1, centerY1), const Color(0xFF0284C7).withValues(alpha: 0.2), size.width * 0.4);
+    _drawOrb(canvas, Offset(centerX2, centerY2), const Color(0xFF4338CA).withValues(alpha: 0.15), size.width * 0.5);
+    _drawOrb(canvas, Offset(centerX3, centerY3), const Color(0xFF38BDF8).withValues(alpha: 0.1), size.width * 0.3);
+    
+    _drawGrid(canvas, size);
+  }
+
+  void _drawOrb(Canvas canvas, Offset center, Color color, double radius) {
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [color, color.withValues(alpha: 0.0)],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  void _drawGrid(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.02)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    const double spacing = 50.0;
+    final offsetX = (animationValue * spacing) % spacing;
+    final offsetY = (animationValue * spacing * 0.5) % spacing;
+
+    for (double i = -spacing; i < size.width + spacing; i += spacing) {
+      canvas.drawLine(Offset(i + offsetX, 0), Offset(i + offsetX, size.height), paint);
+    }
+    for (double i = -spacing; i < size.height + spacing; i += spacing) {
+      canvas.drawLine(Offset(0, i + offsetY), Offset(size.width, i + offsetY), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DynamicMeshGradientPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue;
+  }
 }

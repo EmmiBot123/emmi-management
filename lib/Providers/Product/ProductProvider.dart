@@ -1,115 +1,72 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../Model/Marketing/ProductRequest.dart';
 import '../../Model/productDetails/ProductComponent.dart';
 import '../../Model/productDetails/ProductOption.dart';
-import '../../Resources/api_endpoints.dart';
 
 class ProductProvider extends ChangeNotifier {
   /// Local in-memory store
   List<ProductOption> availableProducts = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// ================= FETCH PRODUCTS =================
   Future<List<ProductOption>> fetchAvailableProducts() async {
     try {
-      final url = "${ApiEndpoints.baseUrl}/api/products";
-      final uri = Uri.parse(url);
+      final snapshot = await _firestore.collection('products').get();
 
-      final response = await http.get(uri);
+      availableProducts = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // ensure ID is set from doc
+        return ProductOption.fromJson(data);
+      }).toList();
 
-      print("🔵 Fetch Products API: ${response.statusCode}");
-      print(response.body);
+      print("🟢 Fetched Products from Firebase = ${availableProducts.length}");
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data is List) {
-          availableProducts =
-              data.map((e) => ProductOption.fromJson(e)).toList();
-
-          print("🟢 Parsed Products = ${availableProducts.length}");
-
-          notifyListeners();
-          return availableProducts;
-        }
-      }
-
-      availableProducts = [];
       notifyListeners();
-      return [];
+      return availableProducts;
     } catch (e) {
       print("❌ fetchAvailableProducts ERROR: $e");
-      availableProducts = [];
       notifyListeners();
-      return [];
+      return availableProducts;
     }
   }
 
   /// ================= CREATE / ADD PRODUCT =================
   Future<bool> addProduct(ProductOption product) async {
     try {
-      final url = "${ApiEndpoints.baseUrl}/api/products";
-      final uri = Uri.parse(url);
+      await _firestore
+          .collection('products')
+          .doc(product.id)
+          .set(product.toJson());
 
-      final body = jsonEncode(product.toJson());
+      print("🟡 Add Product Firebase Success: ${product.id}");
 
-      final response = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: body,
-      );
-
-      print("🟡 Add Product API: ${response.statusCode}");
-      print(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final json = jsonDecode(response.body);
-
-        /// backend returns created document — refresh local list entry
-        final created = ProductOption.fromJson(json);
-
-        final index = availableProducts.indexWhere((p) => p.id == created.id);
-        if (index != -1) {
-          availableProducts[index] = created;
-        } else {
-          availableProducts.add(created);
-        }
-        notifyListeners();
-
-        return true;
+      final index = availableProducts.indexWhere((p) => p.id == product.id);
+      if (index != -1) {
+        availableProducts[index] = product;
+      } else {
+        availableProducts.add(product);
       }
+      notifyListeners();
 
-      return false;
+      return true;
     } catch (e) {
       print("❌ addProduct ERROR: $e");
       return false;
     }
   }
 
+  /// ================= DELETE PRODUCT =================
   Future<bool> deleteProduct(String productId) async {
     try {
-      print("in delete");
-      final url = "${ApiEndpoints.baseUrl}/api/products/$productId";
-      final uri = Uri.parse(url);
+      await _firestore.collection('products').doc(productId).delete();
+      print("🔴 Delete Product Firebase Success: $productId");
 
-      final response = await http.delete(
-        uri,
-        headers: {"Content-Type": "application/json"},
-      );
-
-      print("🔴 Delete Product API: ${response.statusCode}");
-      print(response.body);
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        /// Remove locally
-        availableProducts.removeWhere((p) => p.id == productId);
-        notifyListeners();
-        return true;
-      }
-
-      return false;
+      availableProducts.removeWhere((p) => p.id == productId);
+      notifyListeners();
+      
+      return true;
     } catch (e) {
       print("❌ deleteProduct ERROR: $e");
       return false;
@@ -136,6 +93,10 @@ class ProductProvider extends ChangeNotifier {
         }
       }
     }
+
+    // You may also want to sync this specific consumption back to Firebase
+    // depending on whether visit consumption actually modifies the global 
+    // component stock or is handled differently in the backend.
 
     notifyListeners();
   }

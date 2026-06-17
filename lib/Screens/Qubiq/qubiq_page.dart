@@ -10,7 +10,7 @@ import '../Support/support_ticket_list_page.dart';
 import 'create_admin_dialog.dart';
 import 'manage_keys_dialog.dart';
 import 'school_detail_dialog.dart';
-import 'search_school_dialog.dart';
+import 'direct_school_add_dialog.dart';
 import '../Ads/ads_page.dart';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/Testing/feedback_model.dart';
@@ -299,7 +299,7 @@ class _QubiqPageState extends State<QubiqPage> {
                       onPressed: () {
                         showDialog(
                             context: context,
-                            builder: (_) => const SearchSchoolDialog());
+                            builder: (_) => const DirectSchoolAddDialog());
                       },
                       icon: const Icon(Icons.add_circle_outline,
                           color: Color(0xFF38BDF8)),

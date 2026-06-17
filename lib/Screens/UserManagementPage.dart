@@ -32,6 +32,8 @@ const _roleOptions = [
   {"key": "QUBIQ", "label": "Qubiq", "icon": Icons.api},
   {"key": "ADS", "label": "Ads", "icon": Icons.video_library},
   {"key": "TESTING", "label": "Testing", "icon": Icons.bug_report},
+  {"key": "DEPLOYMENT", "label": "Deployment", "icon": Icons.flight_takeoff},
+  {"key": "TUTORIALS", "label": "Tutorials", "icon": Icons.menu_book},
 ];
 
 class UserManagementPage extends StatefulWidget {
@@ -77,6 +79,16 @@ class _UserManagementPageState extends State<UserManagementPage>
         final data = doc.data();
         data['id'] = doc.id;
         return UserModel.fromJson(data);
+      }).where((user) {
+        final role = user.role?.toUpperCase() ?? '';
+        final staffRoles = [
+          'SUPER_ADMIN', 'ADMIN', 'MARKETING', 'TELE_MARKETING', 
+          'ACCOUNTS', 'ASSEMBLY_TEAM', 'INSTALLATION_TEAM', 
+          'QUBIQ', 'ADS', 'TESTING', 'DIGITAL_MARKETING', 'DEPLOYMENT', 'TUTORIALS'
+        ];
+        final isStaff = staffRoles.contains(role);
+        final isNotManuallyVerified = !(user.name?.toLowerCase().contains('manually verified') ?? false);
+        return isStaff && isNotManuallyVerified;
       }).toList();
       _allUsers.sort((a, b) =>
           (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
@@ -204,9 +216,9 @@ class _UserManagementPageState extends State<UserManagementPage>
     final topPad = MediaQuery.of(context).padding.top;
     final users = _filteredUsers;
 
-    return Container(
-      color: _C.bg,
-      child: Column(
+    return Scaffold(
+      backgroundColor: _C.bg,
+      body: Column(
         children: [
           // ═══ HEADER ═══
           Container(
@@ -604,6 +616,10 @@ class _UserManagementPageState extends State<UserManagementPage>
         return const Color(0xFFFD79A8);
       case 'TESTING':
         return _C.danger;
+      case 'DEPLOYMENT':
+        return Colors.teal;
+      case 'TUTORIALS':
+        return const Color(0xFF10B981);
       default:
         return _C.textSecondary;
     }

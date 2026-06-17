@@ -13,7 +13,12 @@ import 'Accounts/accounts_dashboard.dart';
 import 'markerting/sales_dashboard.dart';
 import 'Qubiq/qubiq_page.dart';
 import 'ContentHub/content_hub_page.dart';
-import 'DigitalMarketing/digital_marketing_dashboard.dart';
+import 'ContentHub/digital_marketing_seo_page.dart';
+import 'CEO/ceo_dashboard_page.dart';
+import 'Assistant/assistant_dashboard_page.dart';
+import 'Tutorials/tutorial_dashboard_page.dart';
+import 'Deployment/deployment_dashboard_page.dart';
+import 'Qubiq/qubiq_manager_dashboard_page.dart';
 
 // ─── Dark palette (matches dashboard) ───
 class _P {
@@ -38,27 +43,42 @@ class _RolesPageState extends State<RolesPage> {
 
   final List<String> roles = [
     "Dashboard",
+    "CEO Dashboard",
+    "Assistant Dashboard",
+    "Deployment Dashboard",
     "Users",
     "Sales",
     "Accounts",
     "Operations",
     "Qubiq",
+    "QubiQ Manager",
     "Content Hub",
     "Digital Marketing",
     "Testing",
+    "Tutorials",
   ];
   final allowedRoles = {
+    "Deployment Dashboard",
+    "QubiQ Manager",
     "Users",
     "Sales",
     "Qubiq",
+    "Qubiq",
     "Content Hub",
     "Digital Marketing",
+    "Tutorials",
   };
 
   IconData getRoleIcon(String role) {
     switch (role) {
       case "Dashboard":
         return Icons.dashboard;
+      case "CEO Dashboard":
+        return Icons.analytics;
+      case "Deployment Dashboard":
+        return Icons.rocket_launch;
+      case "Assistant Dashboard":
+        return Icons.space_dashboard_outlined;
       case "Users":
         return Icons.people_alt;
       case "Sales":
@@ -66,15 +86,19 @@ class _RolesPageState extends State<RolesPage> {
       case "Accounts":
         return Icons.account_balance_wallet;
       case "Operations":
-        return Icons.precision_manufacturing;
+        return Icons.precision_manufacturing_outlined;
       case "Qubiq":
         return Icons.api;
+      case "QubiQ Manager":
+        return Icons.hub;
       case "Content Hub":
         return Icons.school_rounded;
       case "Digital Marketing":
         return Icons.campaign_outlined;
       case "Testing":
         return Icons.bug_report;
+      case "Tutorials":
+        return Icons.video_library;
       default:
         return Icons.person;
     }
@@ -84,6 +108,12 @@ class _RolesPageState extends State<RolesPage> {
     switch (role) {
       case "Dashboard":
         return SuperAdminPage();
+      case "CEO Dashboard":
+        return const CeoDashboardPage();
+      case "Deployment Dashboard":
+        return const DeploymentDashboardPage();
+      case "Assistant Dashboard":
+        return const AssistantDashboardPage();
       case "Users":
         return UserManagementPage();
       case "Sales":
@@ -91,15 +121,19 @@ class _RolesPageState extends State<RolesPage> {
       case "Accounts":
         return AccountsDashboard();
       case "Operations":
-        return OperationsPage();
+        return const OperationsPage();
       case "Qubiq":
         return QubiqPage();
+      case "QubiQ Manager":
+        return const QubiqManagerDashboardPage();
       case "Content Hub":
         return const ContentHubPage();
       case "Digital Marketing":
-        return const DigitalMarketingDashboard();
+        return const DigitalMarketingSeoPage();
       case "Testing":
         return TestingPage();
+      case "Tutorials":
+        return const TutorialDashboardPage();
       default:
         return SizedBox();
     }
@@ -110,8 +144,23 @@ class _RolesPageState extends State<RolesPage> {
     print("User roles: $userRole");
     final userRolesList = userRole.split(',').map((e) => e.trim().toUpperCase()).toList();
 
+    // CEO gets only the CEO Dashboard
+    if (userRolesList.contains("CEO")) {
+      return ["CEO Dashboard"];
+    }
+
+    // Assistant gets only the Assistant Dashboard
+    if (userRolesList.contains("ASSISTANT")) {
+      return ["Assistant Dashboard"];
+    }
+
     if (userRolesList.contains("SUPER_ADMIN")) {
-      return roles;
+      return roles.where((r) => ![
+        "CEO Dashboard", 
+        "Assistant Dashboard", 
+        "Deployment Dashboard",
+        "Tutorials"
+      ].contains(r)).toList();
     }
 
     Set<String> visibleSections = {};
@@ -138,7 +187,7 @@ class _RolesPageState extends State<RolesPage> {
     }
 
     if (userRolesList.contains("QUBIQ")) {
-      visibleSections.add("Qubiq");
+      visibleSections.add("QubiQ Manager");
       visibleSections.add("Sales");
     }
 
@@ -148,6 +197,18 @@ class _RolesPageState extends State<RolesPage> {
 
     if (userRolesList.contains("TESTING")) {
       visibleSections.add("Testing");
+    }
+
+    if (userRolesList.contains("DEPLOYMENT")) {
+      visibleSections.add("Deployment Dashboard");
+      visibleSections.add("Operations"); // Installation staff access
+      visibleSections.add("Content Hub"); // Course Hub
+      visibleSections.add("Qubiq"); // Configure new schools
+    }
+
+    if (userRolesList.contains("TUTORIALS")) {
+      visibleSections.add("Tutorials");
+      visibleSections.add("Content Hub"); // Course Hub access
     }
 
     if (visibleSections.isEmpty) {

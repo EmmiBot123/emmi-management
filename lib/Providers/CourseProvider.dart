@@ -46,8 +46,8 @@ class CourseProvider extends ChangeNotifier {
         final newCourseJson = jsonDecode(response.body);
         final newCourse = Course.fromJson(newCourseJson);
         
-        // 🔄 Sync to Qubiq Firebase
-        await syncCourseToQubiq(newCourse);
+        // 🔄 Sync to Qubiq Firebase (Commented out as courses are public)
+        // await syncCourseToQubiq(newCourse);
         
         await fetchCourses();
         return true;
@@ -55,6 +55,25 @@ class CourseProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint("Error adding course: $e");
+      return false;
+    }
+  }
+
+  Future<bool> updateCourse(Course course) async {
+    try {
+      final response = await http.put(
+        Uri.parse("${ApiEndpoints.renderBaseUrl}/api/courses/${course.id}"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(course.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchCourses();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error updating course: $e");
       return false;
     }
   }

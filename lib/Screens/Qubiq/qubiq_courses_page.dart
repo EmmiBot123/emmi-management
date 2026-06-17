@@ -50,11 +50,16 @@ class _CourseListTabState extends State<CourseListTab> {
                   );
                   if (result != null) {
                     final success = await provider.addCourse(result);
-                    if (success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Course created successfully")),
-                      );
+                    if (success) {
+                      if (result.status == "Published") {
+                        await provider.syncCourseToQubiq(result);
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text("Course created successfully")),
+                        );
+                      }
                     }
                   }
                 },
@@ -83,12 +88,56 @@ class _CourseListTabState extends State<CourseListTab> {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold)),
                             subtitle: Text(
-                                "${course.category} • ${course.duration} • ₹${course.price}"),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Colors.red),
-                              onPressed: () =>
-                                  _confirmDelete(context, provider, course.id),
+                                "${course.category} • ${course.duration} • ₹${course.price} • ${course.status}"),
+                            onTap: () async {
+                              final result = await showDialog(
+                                context: context,
+                                builder: (_) => CreateCourseDialog(course: course),
+                              );
+                              if (result != null) {
+                                final success = await provider.updateCourse(result);
+                                if (success) {
+                                  if (result.status == "Published") {
+                                    await provider.syncCourseToQubiq(result);
+                                  }
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("Course updated successfully")),
+                                    );
+                                  }
+                                }
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+                                  onPressed: () async {
+                                    final result = await showDialog(
+                                      context: context,
+                                      builder: (_) => CreateCourseDialog(course: course),
+                                    );
+                                    if (result != null) {
+                                      final success = await provider.updateCourse(result);
+                                      if (success) {
+                                        if (result.status == "Published") {
+                                          await provider.syncCourseToQubiq(result);
+                                        }
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text("Course updated successfully")),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  onPressed: () => _confirmDelete(context, provider, course.id),
+                                ),
+                              ],
                             ),
                           ),
                         );

@@ -59,6 +59,51 @@ class ProjectProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProject(Project project) async {
+    try {
+      final response = await http.put(
+        Uri.parse("${ApiEndpoints.renderBaseUrl}/api/projects/${project.id}"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(project.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchProjects();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error updating project: $e");
+      return false;
+    }
+  }
+
+  Future<void> syncProjectToQubiq(Project project) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${ApiEndpoints.renderBaseUrl}/admin/sync-project"),
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key":
+              "b256f7241feee8f2626d617e4875ca385c47c9fc97b99bd3a6469a84064eff7c",
+        },
+        body: jsonEncode({
+          "projectId": project.id,
+          ...project.toJson(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint("✅ Project Sync Success: ${project.title}");
+      } else {
+        debugPrint(
+            "❌ Project Sync Failed for ${project.title}: ${response.statusCode} - ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("🔥 Project Sync Exceptional Error for ${project.title}: $e");
+    }
+  }
+
   Future<bool> deleteProject(String id) async {
     try {
       final response = await http.delete(

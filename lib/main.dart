@@ -11,6 +11,8 @@ import 'Providers/Marketing/SchoolVisitProvider.dart';
 import 'Providers/User_provider.dart';
 import 'Providers/CourseProvider.dart';
 import 'Providers/ProjectProvider.dart';
+import 'Providers/TaskProvider.dart';
+import 'Providers/TutorialProvider.dart';
 import 'Screens/Login/LoginScreen.dart';
 import 'Screens/RolesPage.dart';
 
@@ -35,6 +37,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AdsProvider()),
         ChangeNotifierProvider(create: (_) => CourseProvider()),
         ChangeNotifierProvider(create: (_) => ProjectProvider()),
+        ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider(create: (_) => TutorialProvider()),
       ],
       child: MyApp(),
     ),
