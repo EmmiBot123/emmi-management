@@ -258,6 +258,45 @@ class AuthService {
     }
   }
 
+  /// Create a user instantly (for Admins adding team members)
+  Future<String> createUserInstantly({
+    required String email,
+    required String password,
+    required String name,
+    required String role,
+  }) async {
+    try {
+      final secondaryApp = await _initializeSecondaryApp();
+
+      final UserCredential userCredential =
+          await FirebaseAuth.instanceFor(app: secondaryApp)
+              .createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final User? user = userCredential.user;
+      if (user == null) throw Exception("Failed to create user");
+
+      final String uid = user.uid;
+
+      final userData = {
+        'email': email,
+        'name': name,
+        'role': role,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore.collection('users').doc(uid).set(userData);
+
+      return uid;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
   // Workaround to create user without logging out current user
   Future<FirebaseApp> _initializeSecondaryApp() async {
     const secondaryAppName = 'SecondaryApp';

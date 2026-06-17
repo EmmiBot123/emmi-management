@@ -377,7 +377,90 @@ class _LoginScreenLightState extends State<LoginScreenLight>
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            onPressed: () {},
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (ctx) {
+                  final resetEmailCtrl = TextEditingController(text: emailController.text);
+                  bool isSending = false;
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        backgroundColor: _bgCard,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: const Text("Reset Password", style: TextStyle(color: Colors.white)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              "Enter your email address to receive a password reset link.",
+                              style: TextStyle(color: _textSecondary, fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: resetEmailCtrl,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: "Email Address",
+                                hintStyle: TextStyle(color: _textSecondary.withOpacity(0.5)),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.05),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text("Cancel", style: TextStyle(color: _textSecondary)),
+                          ),
+                          ElevatedButton(
+                            onPressed: isSending ? null : () async {
+                              final email = resetEmailCtrl.text.trim();
+                              if (email.isEmpty) return;
+                              setState(() => isSending = true);
+                              try {
+                                await AuthService().resetPassword(email);
+                                if (context.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Reset link sent to $email"),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setState(() => isSending = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(e.toString()),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryAccent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: isSending 
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text("Send Link", style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      );
+                    }
+                  );
+                },
+              );
+            },
             style: TextButton.styleFrom(
               foregroundColor: _primaryAccent,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

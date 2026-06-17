@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../Providers/AuthProvider.dart';
 import '../../Providers/User_provider.dart';
 import '../../Model/User_model.dart';
+import '../../Services/Auth_service.dart';
 
 // ─── Palette ───
 class _C {
@@ -665,7 +666,7 @@ class _AddUserSheetState extends State<_AddUserSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
 
@@ -678,86 +679,103 @@ class _AddUserSheetState extends State<_AddUserSheet> {
       return;
     }
 
-    // Generate setup link instantly (no async, no Firestore)
-    final link = context.read<UserProvider>().generateSetupLink(
-          name: name,
-          email: email,
-          role: _selectedRoles.join(','),
-        );
+    setState(() => _isSaving = true);
 
-    // Send the email in the background
-    context.read<UserProvider>().sendInviteEmail(
-          toEmail: email,
-          name: name,
-          inviteLink: link,
-          role: _selectedRoles.join(', '),
-        );
+    try {
+      final defaultPassword = "Qubiq@${DateTime.now().year}";
+      final roleString = _selectedRoles.join(',');
 
-    // Copy to clipboard immediately
-    Clipboard.setData(ClipboardData(text: link));
+      await AuthService().createUserInstantly(
+        email: email,
+        password: defaultPassword,
+        name: name,
+        role: roleString,
+      );
 
-    // Close bottom sheet first
-    Navigator.pop(context);
-    widget.onAdded();
+      // Close bottom sheet first
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onAdded();
 
-    // Show the link dialog from the parent context
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _C.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: _C.success, size: 22),
-            const SizedBox(width: 10),
-            const Text("Link Copied!",
-                style: TextStyle(
-                    color: _C.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Setup link has been copied to your clipboard. Send it to the new member:",
-              style: TextStyle(color: _C.textSecondary, fontSize: 14),
+        // Show the success dialog with credentials
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: _C.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle, color: _C.success, size: 22),
+                const SizedBox(width: 10),
+                const Text("User Created!",
+                    style: TextStyle(
+                        color: _C.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600)),
+              ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _C.bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _C.surfaceLight),
-              ),
-              child: SelectableText(
-                link,
-                style: const TextStyle(color: _C.accent, fontSize: 12),
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "The account has been created successfully. Provide these credentials to the user:",
+                  style: TextStyle(color: _C.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _C.bg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _C.surfaceLight),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SelectableText(
+                        "Email: $email",
+                        style: const TextStyle(color: _C.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 8),
+                      SelectableText(
+                        "Password: $defaultPassword",
+                        style: const TextStyle(color: _C.accent, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "They should change their password after logging in.",
+                  style: TextStyle(color: _C.warning, fontSize: 12),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: link));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text("Copied again!"),
-                duration: Duration(seconds: 1),
-              ));
-            },
-            child: const Text("Copy Again", style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600)),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: "Email: $email\nPassword: $defaultPassword"));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("Credentials copied!"),
+                    duration: Duration(seconds: 1),
+                  ));
+                },
+                child: const Text("Copy", style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Done", style: TextStyle(color: _C.textMuted)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Done", style: TextStyle(color: _C.textMuted)),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      _showError("Failed to create user: $e");
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _showError(String msg) {

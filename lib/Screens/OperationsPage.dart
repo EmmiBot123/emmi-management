@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../Providers/AuthProvider.dart';
 import '../../Resources/theme_constants.dart';
 import 'Assembly/School_assembly_page.dart';
+import 'Assembly/assembly_dashboard_page.dart';
 import 'Installation/installation_dashboard.dart';
 import 'Installation/installation_team_page.dart';
 
@@ -49,7 +50,7 @@ class _OperationsPageState extends State<OperationsPage> with SingleTickerProvid
     final auth = context.watch<AuthProvider>();
     final userRole = auth.role ?? "";
 
-    if (userRole == "ASSEMBLY_TEAM") return const SchoolAssemblyPage();
+    if (userRole.contains("ASSEMBLY_TEAM")) return const AssemblyDashboardPage();
     if (userRole == "INSTALLATION_TEAM") return const InstallationDashboard();
 
     return Scaffold(
