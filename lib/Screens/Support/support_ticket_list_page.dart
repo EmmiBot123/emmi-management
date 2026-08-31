@@ -815,10 +815,20 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
   // Cache user lookups to avoid multiple requests
   final Map<String, Map<String, String>> _userCache = {};
   bool _legacyUsersLoaded = false;
+  Future<void>? _legacyUsersFuture;
   final Map<String, Map<String, String>> _legacyUserCache = {};
 
   Future<void> _loadLegacyUsers() async {
     if (_legacyUsersLoaded) return;
+    if (_legacyUsersFuture != null) {
+      await _legacyUsersFuture;
+      return;
+    }
+    _legacyUsersFuture = _doLoadLegacyUsers();
+    await _legacyUsersFuture;
+  }
+
+  Future<void> _doLoadLegacyUsers() async {
     try {
       final response = await http.get(Uri.parse('http://35.154.150.95:3000/users'));
       if (response.statusCode == 200) {
@@ -828,10 +838,15 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
           if (uEmail != null) {
             final roleIdList = user['roleId'];
             String sId = '';
-            if (roleIdList is List && roleIdList.isNotEmpty) {
+            if (user.containsKey('schoolId') && user['schoolId'] != null && user['schoolId'].toString().isNotEmpty) {
+              sId = user['schoolId'].toString();
+            } else if (roleIdList is List && roleIdList.isNotEmpty) {
               sId = roleIdList.first.toString();
             } else if (roleIdList is String) {
               sId = roleIdList;
+            }
+            if (sId.isEmpty) {
+              sId = 'N/A';
             }
             _legacyUserCache[uEmail] = {
               'name': user['name']?.toString() ?? '',
@@ -863,8 +878,19 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
       if (snapshot.docs.isNotEmpty) {
         final data = snapshot.docs.first.data();
         final name = data['name'] as String? ?? '';
-        final roleIdList = data['roleId'] as List<dynamic>? ?? [];
-        final schoolId = roleIdList.isNotEmpty ? roleIdList.first.toString() : '';
+        
+        String schoolId = '';
+        if (data.containsKey('schoolId') && data['schoolId'] != null && data['schoolId'].toString().isNotEmpty) {
+          schoolId = data['schoolId'].toString();
+        } else {
+          final roleIdList = data['roleId'] as List<dynamic>? ?? [];
+          schoolId = roleIdList.isNotEmpty ? roleIdList.first.toString() : '';
+        }
+        
+        if (schoolId.isEmpty) {
+          schoolId = 'N/A';
+        }
+        
         final phone = data['phone'] as String? ?? data['contact'] as String? ?? '';
         
         final result = {
@@ -895,7 +921,8 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
         final className = parts[2].toUpperCase();
         final fallbackResult = {
           'name': 'Student (Class $className)',
-          'schoolId': sId,
+          'schoolId': sId.isEmpty ? 'N/A' : sId,
+          'phone': '',
         };
         _userCache[email] = fallbackResult;
         return fallbackResult;
@@ -903,7 +930,7 @@ class _SupportTicketListPageState extends State<SupportTicketListPage>
     }
     
     // Ultimate Fallback
-    final fallback = {'name': '', 'schoolId': ''};
+    final fallback = {'name': '', 'schoolId': 'N/A', 'phone': ''};
     _userCache[email] = fallback;
     return fallback;
   }

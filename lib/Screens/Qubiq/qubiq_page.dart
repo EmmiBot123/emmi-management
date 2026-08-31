@@ -16,6 +16,7 @@ import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/Testing/feedback_model.dart';
 import '../../Repository/Testing/testing_repository.dart';
 import '../../Repository/Statistics/key_pool_repository.dart';
+import 'app_updates_broadcast_page.dart';
 
 class QubiqPage extends StatefulWidget {
   const QubiqPage({super.key});
@@ -114,6 +115,7 @@ class _QubiqPageState extends State<QubiqPage> {
                       _buildSchoolsTab(provider),
                       const AdsPage(),
                       const _TestingReportsSection(),
+                      const AppUpdatesBroadcastPage(),
                     ],
                   ),
                 ),
@@ -155,6 +157,8 @@ class _QubiqPageState extends State<QubiqPage> {
                         _buildDockItem(1, Icons.video_library_rounded, "Ads"),
                         const SizedBox(width: 4),
                         _buildDockItem(2, Icons.bug_report_rounded, "Reports"),
+                        const SizedBox(width: 4),
+                        _buildDockItem(3, Icons.campaign_rounded, "Broadcasts"),
                       ],
                     ),
                   ),

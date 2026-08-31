@@ -19,6 +19,7 @@ import 'Assistant/assistant_dashboard_page.dart';
 import 'Tutorials/tutorial_dashboard_page.dart';
 import 'Deployment/deployment_dashboard_page.dart';
 import 'Qubiq/qubiq_manager_dashboard_page.dart';
+import 'Qubiq/app_updates_broadcast_page.dart';
 
 // ─── Dark palette (matches dashboard) ───
 class _P {
@@ -52,6 +53,7 @@ class _RolesPageState extends State<RolesPage> {
     "Operations",
     "Qubiq",
     "QubiQ Manager",
+    "App Broadcasts",
     "Content Hub",
     "Digital Marketing",
     "Testing",
@@ -60,9 +62,9 @@ class _RolesPageState extends State<RolesPage> {
   final allowedRoles = {
     "Deployment Dashboard",
     "QubiQ Manager",
+    "App Broadcasts",
     "Users",
     "Sales",
-    "Qubiq",
     "Qubiq",
     "Content Hub",
     "Digital Marketing",
@@ -91,6 +93,8 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.api;
       case "QubiQ Manager":
         return Icons.hub;
+      case "App Broadcasts":
+        return Icons.campaign_rounded;
       case "Content Hub":
         return Icons.school_rounded;
       case "Digital Marketing":
@@ -126,6 +130,8 @@ class _RolesPageState extends State<RolesPage> {
         return QubiqPage();
       case "QubiQ Manager":
         return const QubiqManagerDashboardPage();
+      case "App Broadcasts":
+        return const AppUpdatesBroadcastPage();
       case "Content Hub":
         return const ContentHubPage();
       case "Digital Marketing":

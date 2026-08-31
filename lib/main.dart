@@ -14,6 +14,7 @@ import 'Providers/ProjectProvider.dart';
 import 'Providers/TaskProvider.dart';
 import 'Providers/TutorialProvider.dart';
 import 'Providers/Assembly/AssemblyStatsProvider.dart';
+import 'Providers/Updates/app_update_provider.dart';
 import 'Screens/Login/LoginScreen.dart';
 import 'Screens/RolesPage.dart';
 
@@ -41,6 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => TutorialProvider()),
         ChangeNotifierProvider(create: (_) => AssemblyStatsProvider()),
+        ChangeNotifierProvider(create: (_) => AppUpdateProvider()),
       ],
       child: MyApp(),
     ),
