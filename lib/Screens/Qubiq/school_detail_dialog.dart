@@ -5,6 +5,8 @@ import '../../Model/Marketing/school_visit_model.dart';
 import '../../Providers/Qubiq/QubiqProvider.dart';
 import '../../Repository/Support/support_repository.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'lock_school_dialog.dart';
 
 class SchoolDetailDialog extends StatelessWidget {
   final SchoolVisit school;
@@ -12,17 +14,23 @@ class SchoolDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profile = school.schoolProfile;
-    final visit = school.visitDetails;
-    final po = school.purchaseOrder;
-    final pay = school.payment;
-    final lab = school.labInformation;
-    final ship = school.shippingDetails;
-    final hasAdmin = school.adminId != null && school.adminId!.isNotEmpty;
+    final qubiq = context.watch<QubiqProvider>();
+    final currentSchool = qubiq.confirmedSchools.firstWhere(
+      (s) => s.id == school.id,
+      orElse: () => school,
+    );
+
+    final profile = currentSchool.schoolProfile;
+    final visit = currentSchool.visitDetails;
+    final po = currentSchool.purchaseOrder;
+    final pay = currentSchool.payment;
+    final lab = currentSchool.labInformation;
+    final ship = currentSchool.shippingDetails;
+    final hasAdmin = currentSchool.adminId != null && currentSchool.adminId!.isNotEmpty;
 
     final displayCode =
-        (school.schoolCode != null && school.schoolCode!.isNotEmpty)
-            ? school.schoolCode!
+        (currentSchool.schoolCode != null && currentSchool.schoolCode!.isNotEmpty)
+            ? currentSchool.schoolCode!
             : (profile.name.toLowerCase().contains('abcd') ? '3991' : 'N/A');
 
     return Dialog(
@@ -183,6 +191,9 @@ class SchoolDetailDialog extends StatelessWidget {
                         spacing: 20,
                         runSpacing: 20,
                         children: [
+                          // 🔒 Institution Security & Lock Status Banner
+                          _buildAccessStatusBanner(context, currentSchool),
+
                            // 📈 Visual Analytics
                            _BentoCard(
                              width: 745,
@@ -721,6 +732,151 @@ class SchoolDetailDialog extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAccessStatusBanner(BuildContext context, SchoolVisit s) {
+    final isLocked = s.isLocked;
+    final accentColor =
+        isLocked ? const Color(0xFFF43F5E) : const Color(0xFF10B981);
+
+    return Container(
+      width: 745,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accentColor.withValues(alpha: 0.4)),
+            ),
+            child: Icon(
+              isLocked ? Icons.lock_person_rounded : Icons.verified_user_rounded,
+              color: accentColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isLocked
+                          ? "INSTITUTION ACCESS SUSPENDED"
+                          : "INSTITUTION ACCESS ACTIVE",
+                      style: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.5,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isLocked ? "LOCKED" : "OPERATIONAL",
+                        style: TextStyle(
+                          color: accentColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (isLocked) ...[
+                  Text(
+                    "Reason: ${s.lockedReason ?? 'Administrative hold'}${s.lockedBy != null ? ' (by ${s.lockedBy})' : ''}",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (s.lockedAt != null)
+                    Text(
+                      "Suspended on: ${DateFormat('dd MMM yyyy, hh:mm a').format(s.lockedAt!)}",
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
+                    ),
+                ] else ...[
+                  Text(
+                    "All student, teacher, and school admin accounts have full system privileges.",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          if (isLocked)
+            ElevatedButton.icon(
+              onPressed: () => UnlockSchoolDialog.show(context, s),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.lock_open_rounded, size: 16),
+              label: const Text(
+                "Restore Access",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: () => LockSchoolDialog.show(context, s),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFF43F5E),
+                side:
+                    const BorderSide(color: Color(0xFFF43F5E), width: 1.2),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.lock_outline_rounded, size: 16),
+              label: const Text(
+                "Lock School",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+        ],
       ),
     );
   }

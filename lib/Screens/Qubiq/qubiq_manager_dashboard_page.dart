@@ -9,6 +9,7 @@ import '../../Repository/school_visit_repository.dart';
 import '../../Repository/Support/support_repository.dart';
 import 'qubiq_page.dart';
 import '../Support/support_ticket_list_page.dart';
+import '../CEO/task_work_thread_sheet.dart';
 
 class _C {
   static const bg = Color(0xFF09090B);
@@ -314,51 +315,64 @@ class _QubiqManagerDashboardPageState extends State<QubiqManagerDashboardPage> w
                     default: priorityColor = _C.warning;
                   }
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => TaskWorkThreadSheet.show(context, task),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border(
-                        top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        left: BorderSide(color: priorityColor, width: 4),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border(
+                            top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            left: BorderSide(color: priorityColor, width: 4),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                              child: Icon(task.assigneeType == 'Department' ? Icons.business : Icons.person, color: priorityColor, size: 20),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(task.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text(task.description, style: const TextStyle(color: _C.textSecondary, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            IconButton(
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, color: _C.accent, size: 20),
+                              tooltip: "Work Updates & Discussion",
+                              onPressed: () => TaskWorkThreadSheet.show(context, task),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: task.status == 'Completed' ? _C.success.withValues(alpha: 0.1) : _C.bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: task.status == 'Completed' ? _C.success : _C.textMuted),
+                              ),
+                              child: Text(
+                                task.status,
+                                style: TextStyle(color: task.status == 'Completed' ? _C.success : _C.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), shape: BoxShape.circle),
-                          child: Icon(task.assigneeType == 'Department' ? Icons.business : Icons.person, color: priorityColor, size: 20),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(task.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text(task.description, style: const TextStyle(color: _C.textSecondary, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: task.status == 'Completed' ? _C.success.withValues(alpha: 0.1) : _C.bg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: task.status == 'Completed' ? _C.success : _C.textMuted),
-                          ),
-                          child: Text(
-                            task.status,
-                            style: TextStyle(color: task.status == 'Completed' ? _C.success : _C.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
                     ),
                   );
                 }).toList(),

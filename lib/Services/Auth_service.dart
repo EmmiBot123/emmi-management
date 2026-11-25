@@ -58,6 +58,70 @@ class AuthService {
 
       final userData = userDoc.data() as Map<String, dynamic>;
 
+      // 🛡️ Security Check 1: Direct User Account Suspension
+      if (userData['isLocked'] == true || userData['isEnabled'] == false) {
+        await _auth.signOut();
+        final reason = userData['lockedReason'] ?? "Account suspended by administration";
+        throw Exception("Access Denied: $reason. Please contact system administration.");
+      }
+
+      // 🛡️ Security Check 2: Institution / School-Wide Lock
+      final userSchoolId = (userData['schoolId'] ?? userData['schoolCode'])?.toString();
+      if (userSchoolId != null &&
+          userSchoolId.isNotEmpty &&
+          userSchoolId != 'N/A' &&
+          userSchoolId != 'null') {
+        bool isSchoolLocked = false;
+        String? schoolLockedReason;
+
+        // Check in 'schools' collection
+        try {
+          final schoolDoc = await _firestore.collection('schools').doc(userSchoolId).get();
+          if (schoolDoc.exists) {
+            final sData = schoolDoc.data() as Map<String, dynamic>;
+            if (sData['isLocked'] == true) {
+              isSchoolLocked = true;
+              schoolLockedReason = sData['lockedReason'];
+            }
+          }
+        } catch (_) {}
+
+        // If not found or not locked in 'schools', check 'school_visits'
+        if (!isSchoolLocked) {
+          try {
+            final visitDoc = await _firestore.collection('school_visits').doc(userSchoolId).get();
+            if (visitDoc.exists) {
+              final vData = visitDoc.data() as Map<String, dynamic>;
+              if (vData['isLocked'] == true) {
+                isSchoolLocked = true;
+                schoolLockedReason = vData['lockedReason'];
+              }
+            } else {
+              final visitQuery = await _firestore
+                  .collection('school_visits')
+                  .where('schoolCode', isEqualTo: userSchoolId)
+                  .limit(1)
+                  .get();
+              if (visitQuery.docs.isNotEmpty) {
+                final vData = visitQuery.docs.first.data();
+                if (vData['isLocked'] == true) {
+                  isSchoolLocked = true;
+                  schoolLockedReason = vData['lockedReason'];
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (isSchoolLocked) {
+          await _auth.signOut();
+          final reasonStr = (schoolLockedReason != null && schoolLockedReason.isNotEmpty)
+              ? " Reason: $schoolLockedReason."
+              : "";
+          throw Exception("Access Denied: Your institution has been locked by administration.$reasonStr Please contact your school administrator.");
+        }
+      }
+
       // Normalize data for AuthProvider
       final normalizedUser = {
         'id': user.uid,

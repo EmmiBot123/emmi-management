@@ -11,6 +11,7 @@ import 'create_admin_dialog.dart';
 import 'manage_keys_dialog.dart';
 import 'school_detail_dialog.dart';
 import 'direct_school_add_dialog.dart';
+import 'lock_school_dialog.dart';
 import '../Ads/ads_page.dart';
 import '../../Model/Marketing/school_visit_model.dart';
 import '../../Model/Testing/feedback_model.dart';
@@ -393,6 +394,7 @@ class _QubiqPageState extends State<QubiqPage> {
                     final chips = [
                       _buildFilterChip("All", provider),
                       _buildFilterChip("Active", provider),
+                      _buildFilterChip("Locked", provider),
                       _buildFilterChip("Pending", provider),
                       _buildFilterChip("None", provider),
                     ];
@@ -426,11 +428,16 @@ class _QubiqPageState extends State<QubiqPage> {
                               final hasAdmin = school.adminId != null &&
                                   school.adminId!.isNotEmpty &&
                                   !isPending;
+                              final isLocked = school.isLocked;
 
                               Color statusColor = Colors.red.shade400;
-                              if (hasAdmin) statusColor = Colors.green.shade400;
-                              if (isPending)
+                              if (isLocked) {
+                                statusColor = const Color(0xFFF43F5E);
+                              } else if (hasAdmin) {
+                                statusColor = Colors.green.shade400;
+                              } else if (isPending) {
                                 statusColor = Colors.orange.shade400;
+                              }
 
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 24),
@@ -516,7 +523,12 @@ class _QubiqPageState extends State<QubiqPage> {
                                                     ],
                                                   ),
                                                 ),
-                                                _StatusBadgeMini(hasAdmin: hasAdmin, isPending: isPending, color: statusColor),
+                                                _StatusBadgeMini(
+                                                  hasAdmin: hasAdmin,
+                                                  isPending: isPending,
+                                                  isLocked: isLocked,
+                                                  color: statusColor,
+                                                ),
                                               ],
                                             ),
                                             const SizedBox(height: 20),
@@ -539,11 +551,27 @@ class _QubiqPageState extends State<QubiqPage> {
                                                       ),
                                                       const SizedBox(width: 8),
                                                     ],
-                                                    _buildSmallButton(
-                                                      hasAdmin ? "Manage" : (isPending ? "Keys/Resend" : "Setup"), 
-                                                      const Color(0xFF38BDF8), 
-                                                      () => showDialog(context: context, builder: (_) => hasAdmin ? ManageKeysDialog(school: school) : CreateAdminDialog(school: school))
-                                                    ),
+                                                    if (!isLocked) ...[
+                                                      _buildSmallButton(
+                                                        hasAdmin ? "Manage" : (isPending ? "Keys/Resend" : "Setup"), 
+                                                        const Color(0xFF38BDF8), 
+                                                        () => showDialog(context: context, builder: (_) => hasAdmin ? ManageKeysDialog(school: school) : CreateAdminDialog(school: school))
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      _buildSmallButton(
+                                                        "Lock",
+                                                        const Color(0xFFF43F5E),
+                                                        () => LockSchoolDialog.show(context, school),
+                                                        icon: Icons.lock_outline_rounded,
+                                                      ),
+                                                    ] else ...[
+                                                      _buildSmallButton(
+                                                        "Unlock",
+                                                        const Color(0xFF10B981),
+                                                        () => UnlockSchoolDialog.show(context, school),
+                                                        icon: Icons.lock_open_rounded,
+                                                      ),
+                                                    ],
                                                   ],
                                                 ),
                                               ],
@@ -563,20 +591,32 @@ class _QubiqPageState extends State<QubiqPage> {
         );
   }
 
-  Widget _buildSmallButton(String label, Color color, VoidCallback onTap) {
+  Widget _buildSmallButton(String label, Color color, VoidCallback onTap, {IconData? icon}) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.bold, fontSize: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: color, size: 13),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1127,18 +1167,51 @@ class _QubiqPageState extends State<QubiqPage> {
 class _StatusBadgeMini extends StatelessWidget {
   final bool hasAdmin;
   final bool isPending;
+  final bool isLocked;
   final Color color;
 
-  const _StatusBadgeMini({required this.hasAdmin, required this.isPending, required this.color});
+  const _StatusBadgeMini({
+    required this.hasAdmin,
+    required this.isPending,
+    this.isLocked = false,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (isLocked) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF43F5E).withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF43F5E).withValues(alpha: 0.4)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_rounded, size: 14, color: Color(0xFFF43F5E)),
+            SizedBox(width: 4),
+            Text(
+              "LOCKED",
+              style: TextStyle(
+                color: Color(0xFFF43F5E),
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Icon(
         hasAdmin ? Icons.verified_rounded : isPending ? Icons.timer_rounded : Icons.warning_amber_rounded,

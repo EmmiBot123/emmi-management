@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../Providers/User_provider.dart';
-import '../../../Providers/AuthProvider.dart';
 import 'new_admin.dart';
 
 class AdminPage extends StatefulWidget {

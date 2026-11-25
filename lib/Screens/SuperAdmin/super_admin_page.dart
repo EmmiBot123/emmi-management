@@ -18,6 +18,10 @@ import '../Support/support_ticket_list_page.dart';
 import 'ProductManagementPage/ProductManagementPage.dart';
 import 'hardware_orders_page.dart';
 import '../UserManagementPage.dart';
+import '../Inventory/inventory_page.dart';
+import '../../Providers/Notifications/NotificationProvider.dart';
+import '../Notifications/notification_center_sheet.dart';
+import '../Tasks/staff_tasks_sheet.dart';
 
 // ─── Color Palette ───
 class _Palette {
@@ -227,13 +231,22 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         // Only include schools from missions if they are marked as CLOSED_WON
         if (visit.visitDetails.status == "CLOSED_WON") {
           final id = visit.id;
-          if (id != null && !masterSchoolMap.containsKey(id)) {
-            masterSchoolMap[id] = {
-              'id': id,
-              'schoolId': id,
-              'name': visit.schoolProfile.name,
-              'schoolCode': visit.schoolCode,
-            };
+          if (id != null) {
+            if (!masterSchoolMap.containsKey(id)) {
+              masterSchoolMap[id] = {
+                'id': id,
+                'schoolId': id,
+                'name': visit.schoolProfile.name,
+                'schoolCode': visit.schoolCode,
+                'isLocked': visit.isLocked,
+                'lockedReason': visit.lockedReason,
+              };
+            } else {
+              if (visit.isLocked) {
+                masterSchoolMap[id]!['isLocked'] = true;
+                masterSchoolMap[id]!['lockedReason'] = visit.lockedReason;
+              }
+            }
           }
         }
       }
@@ -592,6 +605,54 @@ class _SuperAdminPageState extends State<SuperAdminPage>
                       color: _Palette.accentAlt,
                       onTap: () => Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(builder: (_) => const HardwareOrdersPage())),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildHeaderAction(
+                      icon: Icons.assignment_turned_in_rounded,
+                      label: "Tasks",
+                      color: _Palette.accentAlt,
+                      onTap: () => StaffTasksSheet.show(context),
+                    ),
+                    const SizedBox(width: 12),
+                    Consumer<NotificationProvider>(
+                      builder: (context, notifProv, _) {
+                        final unread = notifProv.getUnreadCount(
+                          auth.userId ?? '',
+                          auth.role ?? 'SUPER_ADMIN',
+                        );
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            _buildHeaderAction(
+                              icon: Icons.notifications_active_rounded,
+                              label: "Alerts",
+                              color: _Palette.accent,
+                              onTap: () => NotificationCenterSheet.show(context),
+                            ),
+                            if (unread > 0)
+                              Positioned(
+                                top: -4,
+                                right: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF4D4F),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: _Palette.surface, width: 2),
+                                  ),
+                                  child: Text(
+                                    '$unread',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(width: 24),
                     Container(
@@ -1122,11 +1183,19 @@ class _SuperAdminPageState extends State<SuperAdminPage>
           children: [
             _buildActionCard(
               title: "Products",
-              subtitle: "Manage inventory",
+              subtitle: "Schemas & builds",
               icon: Icons.precision_manufacturing,
               color: _Palette.accent,
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const ProductManagementPage())),
+            ),
+            _buildActionCard(
+              title: "Inventory",
+              subtitle: "Shelves & parts stock",
+              icon: Icons.inventory_2_rounded,
+              color: const Color(0xFF38BDF8),
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const InventoryPage())),
             ),
             _buildActionCard(
               title: "Sign-offs",
@@ -1150,6 +1219,13 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               color: _Palette.info,
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const SupportTicketListPage())),
+            ),
+            _buildActionCard(
+              title: "Tasks & Updates",
+              subtitle: "Assign & Work Chat",
+              icon: Icons.assignment_turned_in_rounded,
+              color: _Palette.accentAlt,
+              onTap: () => StaffTasksSheet.show(context),
             ),
           ],
         ),
@@ -1562,9 +1638,23 @@ class _SuperAdminPageState extends State<SuperAdminPage>
             ),
             items: _allSchools.map((s) {
               final schoolId = s['schoolCode'] ?? s['id'] ?? s['schoolId'];
+              final isLocked = s['isLocked'] == true;
               return DropdownMenuItem<String>(
                 value: schoolId,
-                child: Text(s['name'] ?? schoolId ?? 'Unknown School'),
+                child: Row(
+                  children: [
+                    if (isLocked) ...[
+                      const Icon(Icons.lock_rounded, size: 14, color: _Palette.danger),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        "${s['name'] ?? schoolId ?? 'Unknown School'}${isLocked ? ' (LOCKED)' : ''}",
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               );
             }).toList(),
             onChanged: (val) {
@@ -1578,6 +1668,87 @@ class _SuperAdminPageState extends State<SuperAdminPage>
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_selectedSchoolId != null) ...[
+            Builder(
+              builder: (context) {
+                final selectedSchool = _allSchools.firstWhere(
+                  (s) => (s['schoolCode'] ?? s['id'] ?? s['schoolId']) == _selectedSchoolId,
+                  orElse: () => {},
+                );
+                final isLocked = selectedSchool['isLocked'] == true;
+                final lockedReason = selectedSchool['lockedReason'];
+
+                return Container(
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isLocked
+                        ? const Color(0xFFF43F5E).withValues(alpha: 0.1)
+                        : const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isLocked
+                          ? const Color(0xFFF43F5E).withValues(alpha: 0.3)
+                          : const Color(0xFF10B981).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isLocked ? Icons.lock_rounded : Icons.verified_user_rounded,
+                        size: 18,
+                        color: isLocked ? const Color(0xFFF43F5E) : const Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isLocked ? "Institution Access: SUSPENDED" : "Institution Access: ACTIVE",
+                              style: TextStyle(
+                                color: isLocked ? const Color(0xFFF43F5E) : const Color(0xFF10B981),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            if (isLocked && lockedReason != null && lockedReason.toString().isNotEmpty)
+                              Text(
+                                "Reason: $lockedReason",
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (isLocked)
+                        ElevatedButton(
+                          onPressed: () => _toggleSchoolLock(selectedSchool, false),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text("Unlock School", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        OutlinedButton(
+                          onPressed: () => _toggleSchoolLock(selectedSchool, true),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFF43F5E),
+                            side: const BorderSide(color: Color(0xFFF43F5E)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text("Lock School", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1606,6 +1777,254 @@ class _SuperAdminPageState extends State<SuperAdminPage>
         Text(label, style: const TextStyle(color: _Palette.textMuted, fontSize: 11)),
       ],
     );
+  }
+
+  Future<void> _toggleSchoolLock(Map<String, dynamic> schoolData, bool shouldLock) async {
+    final schoolName = schoolData['name'] ?? 'School';
+    final schoolId = (schoolData['id'] ?? schoolData['schoolId'] ?? '').toString();
+    final schoolCode = (schoolData['schoolCode'] ?? '').toString();
+
+    if (shouldLock) {
+      final reasonController = TextEditingController(text: "Administrative Hold / Policy Review");
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: _Palette.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_rounded, color: _Palette.danger, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Lock School: $schoolName",
+                  style: const TextStyle(color: _Palette.textPrimary, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Warning: Locking this school immediately suspends all associated accounts (teachers, students, admin) from logging into or using the software.",
+                style: TextStyle(color: _Palette.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reasonController,
+                style: const TextStyle(color: _Palette.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: "Reason for Lock",
+                  labelStyle: const TextStyle(color: _Palette.textSecondary),
+                  filled: true,
+                  fillColor: _Palette.bg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel", style: TextStyle(color: _Palette.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.danger,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Confirm Lock"),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true && mounted) {
+        final reason = reasonController.text.trim();
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final adminUser = authProvider.name ?? authProvider.email ?? "Super Admin";
+
+        try {
+          final repo = SchoolRepository();
+          if (schoolId.isNotEmpty) {
+            await repo.lockSchool(schoolId, reason: reason, lockedBy: adminUser);
+          }
+          if (schoolCode.isNotEmpty && schoolCode != schoolId) {
+            await repo.lockSchool(schoolCode, reason: reason, lockedBy: adminUser);
+          }
+
+          // Update school_visits if document exists
+          if (schoolId.isNotEmpty) {
+            await FirebaseFirestore.instance.collection('school_visits').doc(schoolId).set({
+              'isLocked': true,
+              'lockedReason': reason,
+              'lockedAt': FieldValue.serverTimestamp(),
+              'lockedBy': adminUser,
+            }, SetOptions(merge: true));
+          }
+
+          // Batch suspend linked users
+          final usersRef = FirebaseFirestore.instance.collection('users');
+          for (final identifier in [schoolCode, schoolId].where((s) => s.isNotEmpty)) {
+            final snap = await usersRef.where('schoolId', isEqualTo: identifier).get();
+            if (snap.docs.isNotEmpty) {
+              final batch = FirebaseFirestore.instance.batch();
+              for (final doc in snap.docs) {
+                batch.update(doc.reference, {
+                  'isLocked': true,
+                  'isEnabled': false,
+                  'lockedReason': reason,
+                  'lockedAt': FieldValue.serverTimestamp(),
+                });
+              }
+              await batch.commit();
+            }
+          }
+
+          // Log alert notification
+          await FirebaseFirestore.instance.collection('system_notifications').add({
+            'title': 'School Locked: $schoolName',
+            'message': '$schoolName locked by $adminUser. Reason: $reason.',
+            'category': 'SYSTEM',
+            'priority': 'URGENT',
+            'targetRole': 'SUPER_ADMIN,ADMIN',
+            'actionRoute': 'Qubiq',
+            'actionId': schoolId,
+            'isRead': false,
+            'readBy': [],
+            'createdAt': FieldValue.serverTimestamp(),
+            'createdBy': adminUser,
+          });
+
+          await _fetchSchools();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("🔒 $schoolName locked successfully"), backgroundColor: _Palette.danger),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Error locking school: $e"), backgroundColor: _Palette.danger),
+            );
+          }
+        }
+      }
+    } else {
+      // Unlocking
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: _Palette.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_open_rounded, color: _Palette.success, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Unlock School: $schoolName",
+                  style: const TextStyle(color: _Palette.textPrimary, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            "Restoring access will allow all students, teachers, and school administrators to log in and access the software immediately.",
+            style: TextStyle(color: _Palette.textSecondary, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel", style: TextStyle(color: _Palette.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.success,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Confirm Unlock"),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true && mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final adminUser = authProvider.name ?? authProvider.email ?? "Super Admin";
+
+        try {
+          final repo = SchoolRepository();
+          if (schoolId.isNotEmpty) {
+            await repo.unlockSchool(schoolId, unlockedBy: adminUser);
+          }
+          if (schoolCode.isNotEmpty && schoolCode != schoolId) {
+            await repo.unlockSchool(schoolCode, unlockedBy: adminUser);
+          }
+
+          if (schoolId.isNotEmpty) {
+            await FirebaseFirestore.instance.collection('school_visits').doc(schoolId).set({
+              'isLocked': false,
+              'lockedReason': null,
+              'lockedAt': null,
+              'lockedBy': null,
+              'unlockedAt': FieldValue.serverTimestamp(),
+              'unlockedBy': adminUser,
+            }, SetOptions(merge: true));
+          }
+
+          // Reactivate linked accounts
+          final usersRef = FirebaseFirestore.instance.collection('users');
+          for (final identifier in [schoolCode, schoolId].where((s) => s.isNotEmpty)) {
+            final snap = await usersRef.where('schoolId', isEqualTo: identifier).get();
+            if (snap.docs.isNotEmpty) {
+              final batch = FirebaseFirestore.instance.batch();
+              for (final doc in snap.docs) {
+                batch.update(doc.reference, {
+                  'isLocked': false,
+                  'isEnabled': true,
+                  'lockedReason': null,
+                  'unlockedAt': FieldValue.serverTimestamp(),
+                });
+              }
+              await batch.commit();
+            }
+          }
+
+          // Log alert notification
+          await FirebaseFirestore.instance.collection('system_notifications').add({
+            'title': 'School Unlocked: $schoolName',
+            'message': '$schoolName restored by $adminUser.',
+            'category': 'SYSTEM',
+            'priority': 'HIGH',
+            'targetRole': 'SUPER_ADMIN,ADMIN',
+            'actionRoute': 'Qubiq',
+            'actionId': schoolId,
+            'isRead': false,
+            'readBy': [],
+            'createdAt': FieldValue.serverTimestamp(),
+            'createdBy': adminUser,
+          });
+
+          await _fetchSchools();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("🔓 $schoolName unlocked successfully"), backgroundColor: _Palette.success),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Error unlocking school: $e"), backgroundColor: _Palette.danger),
+            );
+          }
+        }
+      }
+    }
   }
 
   void _showSignOffsModal(BuildContext context) {

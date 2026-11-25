@@ -80,6 +80,11 @@ class SchoolVisit {
   List<SharedUserNote> sharedNotes;
   List<ServiceOrder> serviceOrders;
 
+  bool isLocked;
+  String? lockedReason;
+  DateTime? lockedAt;
+  String? lockedBy;
+
   SchoolVisit({
     this.id,
     required this.createdByUserId,
@@ -109,17 +114,28 @@ class SchoolVisit {
     Map<String, String>? sharedUsers,
     List<SharedUserNote>? sharedNotes,
     List<ServiceOrder>? serviceOrders,
+    this.isLocked = false,
+    this.lockedReason,
+    this.lockedAt,
+    this.lockedBy,
   })  : sharedUsers = sharedUsers ?? {},
         sharedNotes = sharedNotes ?? [],
         serviceOrders = serviceOrders ?? [],
         itemsTaught = itemsTaught ?? [],
         installationIssues = installationIssues ?? [];
+
   SchoolVisit copyWith({
     SchoolProfile? schoolProfile,
     VisitDetails? visitDetails,
     String? schoolCode,
     ShippingDetails? shippingDetails,
+    bool? isLocked,
+    String? lockedReason,
+    DateTime? lockedAt,
+    String? lockedBy,
+    bool clearLockInfo = false,
   }) {
+    final newIsLocked = isLocked ?? this.isLocked;
     return SchoolVisit(
       id: id,
       createdByUserId: createdByUserId,
@@ -145,6 +161,16 @@ class SchoolVisit {
       itemsTaught: itemsTaught,
       installationIssues: installationIssues,
       serviceOrders: serviceOrders,
+      isLocked: newIsLocked,
+      lockedReason: (clearLockInfo || !newIsLocked)
+          ? lockedReason
+          : (lockedReason ?? this.lockedReason),
+      lockedAt: (clearLockInfo || !newIsLocked)
+          ? lockedAt
+          : (lockedAt ?? this.lockedAt),
+      lockedBy: (clearLockInfo || !newIsLocked)
+          ? lockedBy
+          : (lockedBy ?? this.lockedBy),
     );
   }
 
@@ -201,6 +227,14 @@ class SchoolVisit {
           : json["updatedAt"] != null
               ? DateTime.parse(json["updatedAt"].toString())
               : null,
+      isLocked: json["isLocked"] == true,
+      lockedReason: json["lockedReason"],
+      lockedAt: json["lockedAt"] is Timestamp
+          ? (json["lockedAt"] as Timestamp).toDate()
+          : json["lockedAt"] != null
+              ? DateTime.tryParse(json["lockedAt"].toString())
+              : null,
+      lockedBy: json["lockedBy"],
     );
   }
 
@@ -235,6 +269,10 @@ class SchoolVisit {
       "serviceOrders": serviceOrders.map((e) => e.toJson()).toList(),
       "createdAt": createdAt?.toIso8601String(),
       "updatedAt": updatedAt?.toIso8601String(),
+      "isLocked": isLocked,
+      "lockedReason": lockedReason,
+      "lockedAt": lockedAt?.toIso8601String(),
+      "lockedBy": lockedBy,
     };
   }
 }

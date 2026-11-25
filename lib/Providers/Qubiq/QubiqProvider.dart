@@ -129,9 +129,15 @@ class QubiqProvider extends ChangeNotifier {
       final isPending = s.adminId == 'PENDING_SETUP';
       final hasAdmin = s.adminId != null && s.adminId!.isNotEmpty && !isPending;
 
-      if (statusFilter == "Active") matchesStatus = hasAdmin;
-      else if (statusFilter == "Pending") matchesStatus = isPending;
-      else if (statusFilter == "None") matchesStatus = !hasAdmin && !isPending;
+      if (statusFilter == "Active") {
+        matchesStatus = hasAdmin && !s.isLocked;
+      } else if (statusFilter == "Locked") {
+        matchesStatus = s.isLocked;
+      } else if (statusFilter == "Pending") {
+        matchesStatus = isPending;
+      } else if (statusFilter == "None") {
+        matchesStatus = !hasAdmin && !isPending;
+      }
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -742,6 +748,209 @@ class QubiqProvider extends ChangeNotifier {
       }
     } catch (e) {
       return {"success": false, "error": e.toString()};
+    }
+  }
+
+  /// 🔒 Lock School and Suspend All Associated Accounts
+  Future<bool> lockSchool({
+    required String schoolVisitId,
+    required String schoolCode,
+    required String schoolName,
+    required String reason,
+    required String adminUser,
+  }) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final now = DateTime.now();
+
+      // 1. Update school_visits Firestore document
+      await FirebaseFirestore.instance
+          .collection('school_visits')
+          .doc(schoolVisitId)
+          .set({
+        'isLocked': true,
+        'lockedReason': reason,
+        'lockedAt': Timestamp.fromDate(now),
+        'lockedBy': adminUser,
+      }, SetOptions(merge: true));
+
+      // 2. Update schools document
+      final schoolsRef = FirebaseFirestore.instance.collection('schools');
+      if (schoolCode.isNotEmpty) {
+        await schoolsRef.doc(schoolCode).set({
+          'isLocked': true,
+          'lockedReason': reason,
+          'lockedAt': Timestamp.fromDate(now),
+          'lockedBy': adminUser,
+        }, SetOptions(merge: true));
+      }
+      await schoolsRef.doc(schoolVisitId).set({
+        'isLocked': true,
+        'lockedReason': reason,
+        'lockedAt': Timestamp.fromDate(now),
+        'lockedBy': adminUser,
+      }, SetOptions(merge: true));
+
+      // 3. Suspend linked user accounts (Teachers, Students, School Admins)
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final identifiers = [schoolCode, schoolVisitId].where((id) => id.isNotEmpty).toList();
+
+      for (final identifier in identifiers) {
+        final querySnap = await usersRef.where('schoolId', isEqualTo: identifier).get();
+        if (querySnap.docs.isNotEmpty) {
+          final batch = FirebaseFirestore.instance.batch();
+          for (final doc in querySnap.docs) {
+            batch.update(doc.reference, {
+              'isLocked': true,
+              'isEnabled': false,
+              'lockedReason': reason,
+              'lockedAt': Timestamp.fromDate(now),
+            });
+          }
+          await batch.commit();
+        }
+      }
+
+      // 4. Create Audit Notification in system_notifications
+      await FirebaseFirestore.instance.collection('system_notifications').add({
+        'title': 'School Locked: $schoolName',
+        'message': '$schoolName ($schoolCode) locked by $adminUser. Reason: $reason. Linked accounts suspended.',
+        'category': 'SYSTEM',
+        'priority': 'URGENT',
+        'targetRole': 'SUPER_ADMIN,ADMIN',
+        'actionRoute': 'Qubiq',
+        'actionId': schoolVisitId,
+        'isRead': false,
+        'readBy': [],
+        'createdAt': Timestamp.fromDate(now),
+        'createdBy': adminUser,
+      });
+
+      // 5. Update local state
+      final index = confirmedSchools.indexWhere((v) => v.id == schoolVisitId);
+      if (index != -1) {
+        confirmedSchools[index] = confirmedSchools[index].copyWith(
+          isLocked: true,
+          lockedReason: reason,
+          lockedAt: now,
+          lockedBy: adminUser,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      errorMessage = "Failed to lock school: $e";
+      debugPrint("Error locking school: $e");
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// 🔓 Unlock School and Re-enable All Associated Accounts
+  Future<bool> unlockSchool({
+    required String schoolVisitId,
+    required String schoolCode,
+    required String schoolName,
+    required String adminUser,
+  }) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      final now = DateTime.now();
+
+      // 1. Update school_visits Firestore document
+      await FirebaseFirestore.instance
+          .collection('school_visits')
+          .doc(schoolVisitId)
+          .set({
+        'isLocked': false,
+        'lockedReason': null,
+        'lockedAt': null,
+        'lockedBy': null,
+        'unlockedAt': Timestamp.fromDate(now),
+        'unlockedBy': adminUser,
+      }, SetOptions(merge: true));
+
+      // 2. Update schools document
+      final schoolsRef = FirebaseFirestore.instance.collection('schools');
+      if (schoolCode.isNotEmpty) {
+        await schoolsRef.doc(schoolCode).set({
+          'isLocked': false,
+          'lockedReason': null,
+          'lockedAt': null,
+          'lockedBy': null,
+          'unlockedAt': Timestamp.fromDate(now),
+          'unlockedBy': adminUser,
+        }, SetOptions(merge: true));
+      }
+      await schoolsRef.doc(schoolVisitId).set({
+        'isLocked': false,
+        'lockedReason': null,
+        'lockedAt': null,
+        'lockedBy': null,
+        'unlockedAt': Timestamp.fromDate(now),
+        'unlockedBy': adminUser,
+      }, SetOptions(merge: true));
+
+      // 3. Reactivate linked user accounts
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final identifiers = [schoolCode, schoolVisitId].where((id) => id.isNotEmpty).toList();
+
+      for (final identifier in identifiers) {
+        final querySnap = await usersRef.where('schoolId', isEqualTo: identifier).get();
+        if (querySnap.docs.isNotEmpty) {
+          final batch = FirebaseFirestore.instance.batch();
+          for (final doc in querySnap.docs) {
+            batch.update(doc.reference, {
+              'isLocked': false,
+              'isEnabled': true,
+              'lockedReason': null,
+              'unlockedAt': Timestamp.fromDate(now),
+            });
+          }
+          await batch.commit();
+        }
+      }
+
+      // 4. Create Audit Notification in system_notifications
+      await FirebaseFirestore.instance.collection('system_notifications').add({
+        'title': 'School Unlocked: $schoolName',
+        'message': '$schoolName ($schoolCode) restored by $adminUser. All accounts can now access the software.',
+        'category': 'SYSTEM',
+        'priority': 'HIGH',
+        'targetRole': 'SUPER_ADMIN,ADMIN',
+        'actionRoute': 'Qubiq',
+        'actionId': schoolVisitId,
+        'isRead': false,
+        'readBy': [],
+        'createdAt': Timestamp.fromDate(now),
+        'createdBy': adminUser,
+      });
+
+      // 5. Update local state
+      final index = confirmedSchools.indexWhere((v) => v.id == schoolVisitId);
+      if (index != -1) {
+        confirmedSchools[index] = confirmedSchools[index].copyWith(
+          isLocked: false,
+          lockedReason: null,
+          lockedAt: null,
+          lockedBy: null,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      errorMessage = "Failed to unlock school: $e";
+      debugPrint("Error unlocking school: $e");
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
   }
 }

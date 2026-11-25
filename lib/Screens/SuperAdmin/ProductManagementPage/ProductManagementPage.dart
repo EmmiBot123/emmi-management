@@ -6,6 +6,7 @@ import '../../../Providers/Product/ProductProvider.dart';
 import 'Product_detailed_page.dart';
 import 'create_product_page.dart';
 import '../../../../Model/productDetails/ProductOption.dart';
+import '../../Inventory/inventory_page.dart';
 
 // ─── Color Palette ───
 class _Palette {
@@ -79,6 +80,19 @@ class _ProductManagementPageState extends State<ProductManagementPage>
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: "Component Shelves & Inventory",
+            icon: const Icon(Icons.inventory_2_rounded, color: _Palette.accent),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const InventoryPage()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {

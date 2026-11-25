@@ -3,23 +3,28 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import '../Providers/AuthProvider.dart';
 
-import 'Accounts/School_account_page.dart';
 import 'UserManagementPage.dart';
 import 'OperationsPage.dart';
-import 'SalesPage.dart';
 import 'SuperAdmin/super_admin_page.dart';
 import 'Testing/testing_page.dart';
 import 'Accounts/accounts_dashboard.dart';
-import 'markerting/sales_dashboard.dart';
 import 'Qubiq/qubiq_page.dart';
 import 'ContentHub/content_hub_page.dart';
-import 'ContentHub/digital_marketing_seo_page.dart';
 import 'CEO/ceo_dashboard_page.dart';
 import 'Assistant/assistant_dashboard_page.dart';
 import 'Tutorials/tutorial_dashboard_page.dart';
 import 'Deployment/deployment_dashboard_page.dart';
 import 'Qubiq/qubiq_manager_dashboard_page.dart';
 import 'Qubiq/app_updates_broadcast_page.dart';
+import 'Inventory/inventory_page.dart';
+import '../Providers/Permissions/RolePermissionProvider.dart';
+import '../Providers/Notifications/NotificationProvider.dart';
+import 'Notifications/notification_center_sheet.dart';
+import '../Providers/TaskProvider.dart';
+import '../Model/Task_model.dart';
+import 'Tasks/staff_tasks_sheet.dart';
+import 'markerting/marketing_dashboard_page.dart';
+import 'DigitalMarketing/digital_marketing_dashboard_page.dart';
 
 // ─── Dark palette (matches dashboard) ───
 class _P {
@@ -48,14 +53,16 @@ class _RolesPageState extends State<RolesPage> {
     "Assistant Dashboard",
     "Deployment Dashboard",
     "Users",
+    "Marketing",
+    "Digital Marketing",
     "Sales",
     "Accounts",
     "Operations",
+    "Inventory",
     "Qubiq",
     "QubiQ Manager",
     "App Broadcasts",
     "Content Hub",
-    "Digital Marketing",
     "Testing",
     "Tutorials",
   ];
@@ -64,10 +71,12 @@ class _RolesPageState extends State<RolesPage> {
     "QubiQ Manager",
     "App Broadcasts",
     "Users",
+    "Marketing",
+    "Digital Marketing",
     "Sales",
+    "Inventory",
     "Qubiq",
     "Content Hub",
-    "Digital Marketing",
     "Tutorials",
   };
 
@@ -83,12 +92,18 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.space_dashboard_outlined;
       case "Users":
         return Icons.people_alt;
+      case "Marketing":
+        return Icons.campaign_rounded;
+      case "Digital Marketing":
+        return Icons.computer_rounded;
       case "Sales":
         return Icons.storefront;
       case "Accounts":
         return Icons.account_balance_wallet;
       case "Operations":
         return Icons.precision_manufacturing_outlined;
+      case "Inventory":
+        return Icons.inventory_2_rounded;
       case "Qubiq":
         return Icons.api;
       case "QubiQ Manager":
@@ -97,8 +112,6 @@ class _RolesPageState extends State<RolesPage> {
         return Icons.campaign_rounded;
       case "Content Hub":
         return Icons.school_rounded;
-      case "Digital Marketing":
-        return Icons.campaign_outlined;
       case "Testing":
         return Icons.bug_report;
       case "Tutorials":
@@ -120,12 +133,18 @@ class _RolesPageState extends State<RolesPage> {
         return const AssistantDashboardPage();
       case "Users":
         return UserManagementPage();
+      case "Marketing":
+        return const MarketingDashboardPage();
+      case "Digital Marketing":
+        return const DigitalMarketingDashboardPage();
       case "Sales":
-        return SalesPage();
+        return const MarketingDashboardPage();
       case "Accounts":
         return AccountsDashboard();
       case "Operations":
         return const OperationsPage();
+      case "Inventory":
+        return const InventoryPage();
       case "Qubiq":
         return QubiqPage();
       case "QubiQ Manager":
@@ -134,8 +153,6 @@ class _RolesPageState extends State<RolesPage> {
         return const AppUpdatesBroadcastPage();
       case "Content Hub":
         return const ContentHubPage();
-      case "Digital Marketing":
-        return const DigitalMarketingSeoPage();
       case "Testing":
         return TestingPage();
       case "Tutorials":
@@ -145,8 +162,8 @@ class _RolesPageState extends State<RolesPage> {
     }
   }
 
-  /// Filter roles based on logged in user role
-  List<String> filterRoles(String userRole) {
+  /// Filter roles based on logged in user role and RBAC matrix
+  List<String> filterRoles(String userRole, [RolePermissionProvider? permProvider]) {
     print("User roles: $userRole");
     final userRolesList = userRole.split(',').map((e) => e.trim().toUpperCase()).toList();
 
@@ -169,6 +186,19 @@ class _RolesPageState extends State<RolesPage> {
       ].contains(r)).toList();
     }
 
+    // Check dynamic RBAC permissions if configured
+    if (permProvider != null && permProvider.permissionsByRole.isNotEmpty) {
+      final List<String> dynamicRoles = [];
+      for (final r in roles) {
+        if (permProvider.canUserAccessScreen(userRole, r)) {
+          dynamicRoles.add(r);
+        }
+      }
+      if (dynamicRoles.isNotEmpty) {
+        return dynamicRoles;
+      }
+    }
+
     Set<String> visibleSections = {};
 
     if (userRolesList.contains("ADMIN")) {
@@ -176,6 +206,7 @@ class _RolesPageState extends State<RolesPage> {
     }
 
     if (userRolesList.contains("MARKETING") || userRolesList.contains("TELE_MARKETING")) {
+      visibleSections.add("Marketing");
       visibleSections.add("Sales");
     }
 
@@ -190,6 +221,11 @@ class _RolesPageState extends State<RolesPage> {
     if (userRolesList.contains("ASSEMBLY_TEAM") || userRolesList.contains("INSTALLATION_TEAM")) {
       visibleSections.add("Operations");
       visibleSections.add("Testing");
+      visibleSections.add("Inventory");
+    }
+
+    if (userRolesList.contains("INVENTORY") || userRolesList.contains("OPERATIONS")) {
+      visibleSections.add("Inventory");
     }
 
     if (userRolesList.contains("QUBIQ")) {
@@ -286,7 +322,9 @@ class _RolesPageState extends State<RolesPage> {
     }
 
     final String userRole = auth.role!;
-    final List<String> visibleRoles = filterRoles(userRole);
+    final permProvider = context.watch<RolePermissionProvider>();
+    final notifProvider = context.watch<NotificationProvider>();
+    final List<String> visibleRoles = filterRoles(userRole, permProvider);
 
     if (selectedIndex >= visibleRoles.length) {
       selectedIndex = 0;
@@ -328,6 +366,51 @@ class _RolesPageState extends State<RolesPage> {
                 },
               ),
             ),
+
+          // Floating Tasks & Work Updates button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            right: 64,
+            child: _FloatingTasksButton(
+              isDashboard: isDashboard,
+              userId: auth.userId ?? '',
+              userRole: userRole,
+              onTap: () {
+                StaffTasksSheet.show(context);
+              },
+            ),
+          ),
+
+          // Floating notification bell button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            right: 12,
+            child: _FloatingNotificationButton(
+              isDashboard: isDashboard,
+              unreadCount: notifProvider.getUnreadCount(
+                auth.userId ?? '',
+                userRole,
+              ),
+              onTap: () {
+                NotificationCenterSheet.show(
+                  context,
+                  onNavigate: (route) {
+                    final targetIdx = visibleRoles.indexOf(route);
+                    if (targetIdx != -1) {
+                      setState(() {
+                        selectedIndex = targetIdx;
+                      });
+                      _navKey.currentState?.pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => getRolePage(visibleRoles[targetIdx]),
+                        ),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -373,7 +456,7 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
             color: _P.bg,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _P.surfaceLight,
+              color: _hovering ? _P.accent : _P.surfaceLight,
               width: 1,
             ),
             boxShadow: [
@@ -396,8 +479,205 @@ class _FloatingMenuButtonState extends State<_FloatingMenuButton> {
 }
 
 // ═══════════════════════════════════════════════════════
-//  Navigation Panel (overlay)
+//  Floating Notification Bell Button
 // ═══════════════════════════════════════════════════════
+class _FloatingNotificationButton extends StatefulWidget {
+  final bool isDashboard;
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _FloatingNotificationButton({
+    required this.isDashboard,
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  @override
+  State<_FloatingNotificationButton> createState() => _FloatingNotificationButtonState();
+}
+
+class _FloatingNotificationButtonState extends State<_FloatingNotificationButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _P.bg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _hovering ? _P.accent : _P.surfaceLight,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.notifications_active_outlined,
+                size: 20,
+                color: Colors.white,
+              ),
+              if (widget.unreadCount > 0)
+                Positioned(
+                  top: -6,
+                  right: -6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4D4F),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _P.bg, width: 1.5),
+                    ),
+                    child: Text(
+                      '${widget.unreadCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Floating Tasks & Work Updates Button
+// ═══════════════════════════════════════════════════════
+class _FloatingTasksButton extends StatefulWidget {
+  final bool isDashboard;
+  final String userId;
+  final String userRole;
+  final VoidCallback onTap;
+
+  const _FloatingTasksButton({
+    required this.isDashboard,
+    required this.userId,
+    required this.userRole,
+    required this.onTap,
+  });
+
+  @override
+  State<_FloatingTasksButton> createState() => _FloatingTasksButtonState();
+}
+
+class _FloatingTasksButtonState extends State<_FloatingTasksButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProvider = context.watch<TaskProvider>();
+    final taskStream = taskProvider.getTasksForUserStream(widget.userId, widget.userRole);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Tooltip(
+        message: "Tasks & Work Updates",
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _P.bg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _hovering ? const Color(0xFF8B5CF6) : _P.surfaceLight,
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: StreamBuilder<List<TaskModel>>(
+              stream: taskStream,
+              builder: (context, snapshot) {
+                final tasks = snapshot.data ?? [];
+                final activeCount = tasks.where((t) => t.status != 'Completed').length;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(
+                      Icons.assignment_turned_in_outlined,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    if (activeCount > 0)
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _P.bg, width: 1.5),
+                          ),
+                          child: Text(
+                            '$activeCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Navigation Panel (Categorized & Streamlined)
+// ═══════════════════════════════════════════════════════
+
+class _NavGroupDef {
+  final String title;
+  final IconData icon;
+  final List<String> screens;
+
+  const _NavGroupDef({
+    required this.title,
+    required this.icon,
+    required this.screens,
+  });
+}
+
 class _NavPanel extends StatelessWidget {
   final List<String> visibleRoles;
   final int selectedIndex;
@@ -413,14 +693,156 @@ class _NavPanel extends StatelessWidget {
     required this.onLogout,
   });
 
+  static const List<_NavGroupDef> _groups = [
+    _NavGroupDef(
+      title: "EXECUTIVE & CORE",
+      icon: Icons.space_dashboard_outlined,
+      screens: [
+        "Dashboard",
+        "CEO Dashboard",
+        "Assistant Dashboard",
+        "Users",
+        "Accounts",
+      ],
+    ),
+    _NavGroupDef(
+      title: "WORKSHOP & HARDWARE",
+      icon: Icons.precision_manufacturing_outlined,
+      screens: [
+        "Operations",
+        "Inventory",
+        "Testing",
+        "Deployment Dashboard",
+      ],
+    ),
+    _NavGroupDef(
+      title: "GROWTH & OUTREACH",
+      icon: Icons.trending_up_rounded,
+      screens: [
+        "Marketing",
+        "Digital Marketing",
+        "Sales",
+      ],
+    ),
+    _NavGroupDef(
+      title: "QUBIQ & CONTENT",
+      icon: Icons.hub_outlined,
+      screens: [
+        "QubiQ Manager",
+        "App Broadcasts",
+        "Qubiq",
+        "Content Hub",
+        "Tutorials",
+      ],
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
+    // Collect widgets grouped by category
+    final Set<String> matched = {};
+    final List<Widget> navItems = [];
+
+    for (final group in _groups) {
+      final inThisGroup = group.screens.where(visibleRoles.contains).toList();
+      if (inThisGroup.isNotEmpty) {
+        matched.addAll(inThisGroup);
+
+        // Category Header
+        navItems.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+            child: Row(
+              children: [
+                Icon(group.icon, size: 12, color: _P.textMuted),
+                const SizedBox(width: 6),
+                Text(
+                  group.title,
+                  style: const TextStyle(
+                    color: _P.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: _P.surfaceLight.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        // Group Screens
+        for (final screen in inThisGroup) {
+          final originalIdx = visibleRoles.indexOf(screen);
+          final isSelected = originalIdx == selectedIndex;
+          navItems.add(
+            _NavItem(
+              label: screen,
+              icon: getRoleIcon(screen),
+              isSelected: isSelected,
+              onTap: () => onSelect(originalIdx),
+            ),
+          );
+        }
+      }
+    }
+
+    // Any remaining uncategorized screens
+    final leftovers = visibleRoles.where((s) => !matched.contains(s)).toList();
+    if (leftovers.isNotEmpty) {
+      navItems.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.more_horiz_rounded, size: 12, color: _P.textMuted),
+              const SizedBox(width: 6),
+              const Text(
+                "OTHER MODULES",
+                style: TextStyle(
+                  color: _P.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: _P.surfaceLight.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      for (final screen in leftovers) {
+        final originalIdx = visibleRoles.indexOf(screen);
+        final isSelected = originalIdx == selectedIndex;
+        navItems.add(
+          _NavItem(
+            label: screen,
+            icon: getRoleIcon(screen),
+            isSelected: isSelected,
+            onTap: () => onSelect(originalIdx),
+          ),
+        );
+      }
+    }
+
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 280,
+        width: 290,
         height: double.infinity,
         decoration: const BoxDecoration(
           color: _P.bg,
@@ -442,21 +864,20 @@ class _NavPanel extends StatelessWidget {
 
             // ── Logo / Brand ──
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF6C63FF), Color(0xFF4834DF)],
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.auto_awesome,
-                        color: Colors.white, size: 20),
+                    child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -464,7 +885,7 @@ class _NavPanel extends StatelessWidget {
                         "QUBIQ",
                         style: TextStyle(
                           color: _P.textPrimary,
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
                         ),
@@ -473,7 +894,7 @@ class _NavPanel extends StatelessWidget {
                         "Operating System",
                         style: TextStyle(
                           color: _P.textMuted,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w400,
                           letterSpacing: 0.3,
                         ),
@@ -491,192 +912,121 @@ class _NavPanel extends StatelessWidget {
                         color: _P.surfaceLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.close,
-                          color: _P.textMuted, size: 18),
+                      child: const Icon(Icons.close, color: _P.textMuted, size: 16),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
 
-            // ── Divider ──
+            // Divider
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                height: 1,
-                color: _P.surfaceLight,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // ── Section Label ──
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 28, vertical: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "NAVIGATION",
-                  style: TextStyle(
-                    color: _P.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Nav Items ──
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: visibleRoles.length,
-                itemBuilder: (context, i) {
-                  final isSelected = i == selectedIndex;
-                  final role = visibleRoles[i];
-                  return _NavItem(
-                    label: role,
-                    icon: getRoleIcon(role),
-                    isSelected: isSelected,
-                    onTap: () => onSelect(i),
-                  );
-                },
-              ),
-            ),
-
-            // ── Divider ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(height: 1, color: _P.surfaceLight),
             ),
 
-            // ── Download APK Card ──
+            // ── Grouped Nav Items List ──
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                children: navItems,
+              ),
+            ),
+
+            // Divider
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _P.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _P.surfaceLight),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent.withOpacity(0.1),
-                            shape: BoxShape.circle,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(height: 1, color: _P.surfaceLight),
+            ),
+
+            // ── Streamlined Footer Actions ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: Column(
+                children: [
+                  // Compact APK download row
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => launchUrlString("/qubiq_os.apk"),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _P.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _P.surfaceLight),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.android_rounded, color: Colors.greenAccent, size: 15),
                           ),
-                          child: const Icon(Icons.android,
-                              color: Colors.greenAccent, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Mobile App",
-                                style: TextStyle(
-                                  color: _P.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Mobile App",
+                                  style: TextStyle(color: _P.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
                                 ),
-                              ),
-                              Text(
-                                "v1.0.0 • APK",
-                                style: TextStyle(
-                                  color: _P.textMuted,
-                                  fontSize: 11,
+                                Text(
+                                  "v1.0.0 • APK",
+                                  style: TextStyle(color: _P.textMuted, fontSize: 9),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          const Icon(Icons.file_download_outlined, color: _P.accent, size: 16),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Compact Logout button
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: onLogout,
+                    child: Container(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          launchUrlString("/qubiq_os.apk");
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _P.accent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFFFF6B6B).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout_rounded, color: Color(0xFFFF6B6B), size: 15),
+                          SizedBox(width: 8),
+                          Text(
+                            "Logout",
+                            style: TextStyle(
+                              color: Color(0xFFFF6B6B),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.file_download, size: 16),
-                            SizedBox(width: 8),
-                            Text("Download APK",
-                                style: TextStyle(fontSize: 12)),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
-            // ── Logout ──
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: onLogout,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B6B).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: const Color(0xFFFF6B6B).withOpacity(0.15),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.logout,
-                          color: Color(0xFFFF6B6B), size: 18),
-                      SizedBox(width: 10),
-                      Text(
-                        "Logout",
-                        style: TextStyle(
-                          color: Color(0xFFFF6B6B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 4),
           ],
         ),
       ),
@@ -685,7 +1035,7 @@ class _NavPanel extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════
-//  Single Nav Item
+//  Single Nav Item (Compact & Ergonomic)
 // ═══════════════════════════════════════════════════════
 class _NavItem extends StatefulWidget {
   final String label;
@@ -712,41 +1062,52 @@ class _NavItemState extends State<_NavItem> {
     final isActive = widget.isSelected;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovering = true),
         onExit: (_) => setState(() => _hovering = false),
         child: GestureDetector(
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: isActive
-                  ? _P.accent.withOpacity(0.12)
-                  : (_hovering ? _P.surfaceLight : Colors.transparent),
-              borderRadius: BorderRadius.circular(14),
+                  ? _P.accent.withValues(alpha: 0.14)
+                  : (_hovering ? _P.surfaceLight.withValues(alpha: 0.7) : Colors.transparent),
+              borderRadius: BorderRadius.circular(10),
               border: isActive
-                  ? Border.all(color: _P.accent.withOpacity(0.2), width: 1)
+                  ? Border.all(color: _P.accent.withValues(alpha: 0.25), width: 1)
                   : null,
             ),
             child: Row(
               children: [
+                // Left active indicator pill
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 3,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: isActive ? _P.accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Icon badge
+                Container(
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? _P.accent.withOpacity(0.15)
+                        ? _P.accent.withValues(alpha: 0.18)
                         : _P.surfaceLight,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     widget.icon,
-                    size: 18,
+                    size: 16,
                     color: isActive ? _P.accent : _P.textSecondary,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     widget.label,

@@ -4,6 +4,7 @@ import '../../Providers/Assembly/AssemblyStatsProvider.dart';
 import '../GenericTeamPage.dart';
 import '../SuperAdmin/ProductManagementPage/ProductManagementPage.dart';
 import 'School_assembly_page.dart';
+import '../Inventory/inventory_page.dart';
 
 // ─── Color Palette
 class _C {
@@ -225,9 +226,21 @@ class _AssemblyDashboardPageState extends State<AssemblyDashboardPage> {
       physics: const NeverScrollableScrollPhysics(),
       children: [
         _buildActionCard(
+          title: "Component Inventory",
+          subtitle: "Shelves & parts stock",
+          icon: Icons.inventory_2_rounded,
+          color: const Color(0xFF38BDF8),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InventoryPage()),
+            );
+          },
+        ),
+        _buildActionCard(
           title: "Product Management",
-          subtitle: "Manage inventory & schemas",
-          icon: Icons.inventory_2_outlined,
+          subtitle: "Manage kit schemas",
+          icon: Icons.precision_manufacturing_outlined,
           color: _C.warning,
           onTap: () {
             Navigator.push(

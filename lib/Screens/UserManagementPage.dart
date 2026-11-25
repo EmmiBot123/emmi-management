@@ -7,6 +7,7 @@ import '../../Providers/AuthProvider.dart';
 import '../../Providers/User_provider.dart';
 import '../../Model/User_model.dart';
 import '../../Services/Auth_service.dart';
+import 'Admin/role_permissions_page.dart';
 
 // ─── Palette ───
 class _C {
@@ -296,40 +297,82 @@ class _UserManagementPageState extends State<UserManagementPage>
                             ],
                           ),
                         ),
-                        // Add user button
-                        GestureDetector(
-                          onTap: _showAddUserSheet,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add,
-                                    size: 18, color: Color(0xFF1B1464)),
-                                SizedBox(width: 6),
-                                Text(
-                                  "Add User",
-                                  style: TextStyle(
-                                    color: Color(0xFF1B1464),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Permissions Matrix button
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RolePermissionsPage(),
                                   ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.white.withOpacity(0.2)),
                                 ),
-                              ],
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.security_rounded,
+                                        size: 16, color: Colors.white),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "Permissions",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            // Add user button
+                            GestureDetector(
+                              onTap: _showAddUserSheet,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add,
+                                        size: 18, color: Color(0xFF1B1464)),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "Add User",
+                                      style: TextStyle(
+                                        color: Color(0xFF1B1464),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -14,6 +14,7 @@ import '../../Providers/Ads/AdsProvider.dart';
 import '../../Providers/TaskProvider.dart';
 import '../../Model/Task_model.dart';
 import 'assign_task_dialog.dart';
+import 'task_work_thread_sheet.dart';
 import '../../Repository/school_visit_repository.dart';
 import '../../Repository/Support/support_repository.dart';
 import '../../Repository/Testing/testing_repository.dart';
@@ -631,58 +632,71 @@ class _CeoDashboardPageState extends State<CeoDashboardPage>
                     default: priorityColor = _C.warning;
                   }
 
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => TaskWorkThreadSheet.show(context, task),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border(
-                        top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                        left: BorderSide(color: priorityColor, width: 4),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: task.assigneeType == 'Department' ? _C.accentAlt.withValues(alpha: 0.1) : _C.accent.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(task.assigneeType == 'Department' ? Icons.business : Icons.person, color: task.assigneeType == 'Department' ? _C.accentAlt : _C.accent, size: 20),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(task.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
-                              Text("To: ${task.assignedToName}", style: const TextStyle(color: _C.textSecondary, fontSize: 12)),
-                            ],
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border(
+                            top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            right: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                            left: BorderSide(color: priorityColor, width: 4),
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                              child: Text("${task.priority} Priority", style: TextStyle(color: priorityColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: task.assigneeType == 'Department' ? _C.accentAlt.withValues(alpha: 0.1) : _C.accent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(task.assigneeType == 'Department' ? Icons.business : Icons.person, color: task.assigneeType == 'Department' ? _C.accentAlt : _C.accent, size: 20),
                             ),
-                            const SizedBox(height: 8),
-                            Text(task.status, style: TextStyle(color: task.status == 'Completed' ? _C.success : _C.warning, fontSize: 11, fontWeight: FontWeight.bold)),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(task.title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 4),
+                                  Text("To: ${task.assignedToName}", style: const TextStyle(color: _C.textSecondary, fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                                  child: Text("${task.priority} Priority", style: TextStyle(color: priorityColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(task.status, style: TextStyle(color: task.status == 'Completed' ? _C.success : _C.warning, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, color: _C.accentAlt, size: 20),
+                              tooltip: "Work Updates & Discussion",
+                              onPressed: () => TaskWorkThreadSheet.show(context, task),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: _C.danger, size: 20),
+                              tooltip: "Delete Task",
+                              onPressed: () => context.read<TaskProvider>().deleteTask(task.id!),
+                            ),
                           ],
                         ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: _C.danger, size: 20),
-                          onPressed: () => context.read<TaskProvider>().deleteTask(task.id!),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 }).toList(),
